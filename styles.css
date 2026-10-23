@@ -65,3 +65,4 @@ body{font-size:12px}.site-header h1{font-size:24px}.subtitle,.notice p,.section-
  .vote-actions button:disabled{opacity:.55;cursor:not-allowed}
  .profile-result.tight-time{background:#fff0b3;border-color:#a96e00}.tight-time strong{color:#704800}
  .profile-overlay{background:#e9e2f6}
+ .profile-result:nth-child(5){grid-template-columns:2.1rem 1fr auto}.profile-result:nth-child(5) .profile-result-icon{width:2rem;font-size:.75rem;letter-spacing:-.05em;white-space:nowrap}
