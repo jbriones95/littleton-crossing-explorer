@@ -1,4 +1,4 @@
-const state = { all: [], curbs: [], streetNames: [], filtered: [], speed: 3.5, direction: 'one-from-two', map: null, layer: null, highlightLayer: null, renderer: null, selected: null, crossing: null, sceneFrame: null, sceneStreet: null, filterTimer: null, boundsCache: new WeakMap(), geometryCache: new WeakMap() };
+const state = { all: [], curbs: [], streetNames: [], streetOptions: [], approachOptions: [], familyNames: new Map(), familySegments: new Map(), connectedFamilies: new Map(), filtered: [], speed: 3.5, direction: 'one-from-two', map: null, layer: null, highlightLayer: null, renderer: null, selected: null, crossing: null, sceneFrame: null, sceneStreet: null, filterTimer: null, boundsCache: new WeakMap(), geometryCache: new WeakMap() };
 const movementProfiles = [
   { name: 'Adult', emoji: '🚶', speed: 3.5 },
   { name: 'Child', emoji: '👦', speed: 3 },
@@ -165,35 +165,36 @@ function nearby(a, b, threshold = 0.0012) {
 }
 
 function updateStreetSuggestions(first) {
-  const list = $('street-names');
-  list.replaceChildren();
-  let names = state.all.map(street => street.name).filter(Boolean);
-  const normalizedFirst = normalizeStreet(first);
-  const firstSegments = normalizedFirst.length >= 4 ? state.all.filter(street => street.geometry && streetMatches(street, first)) : [];
-  if (firstSegments.length) {
-    const nearbyNames = new Set();
-    state.all.forEach(street => {
-      if (!street.geometry || streetMatches(street, first)) return;
-       if (firstSegments.some(segment => intersectsStreet(segment, street))) nearbyNames.add(street.name);
-    });
-    names = [...nearbyNames];
+  const term = streetFamily(first);
+  if (!term || term.length < 3) { state.approachOptions = state.streetOptions; return; }
+  const nearbyFamilies = new Set();
+  for (const [family, connected] of state.connectedFamilies) {
+    if (family.includes(term)) connected.forEach(name => nearbyFamilies.add(name));
   }
-  [...new Set(names)].sort((a, b) => a.localeCompare(b)).forEach(name => {
-    const option = document.createElement('option'); option.value = name; list.appendChild(option);
-  });
+  state.approachOptions = nearbyFamilies.size
+    ? state.streetOptions.filter(option => nearbyFamilies.has(option.family))
+    : state.streetOptions;
 }
 
-function renderSuggestions(inputId, listId, names) {
+function renderSuggestions(inputId, listId, options) {
   const input = $(inputId); const list = $(listId); const term = normalizeStreet(input.value);
-  const matches = names.filter(name => !term || normalizeStreet(name).includes(term)).sort((a, b) => {
-    if (!term) return a.localeCompare(b);
-    return Number(!normalizeStreet(a).startsWith(term)) - Number(!normalizeStreet(b).startsWith(term)) || a.localeCompare(b);
-  }).slice(0, 8);
+  if (!term) { list.replaceChildren(); list.classList.remove('visible'); return; }
+  const startsWith = []; const contains = [];
+  for (const option of options) {
+    if (option.normalized.startsWith(term)) startsWith.push(option.name);
+    else if (option.normalized.includes(term)) contains.push(option.name);
+    if (startsWith.length >= 8) break;
+  }
+  const matches = startsWith.length >= 8 ? startsWith : startsWith.concat(contains.slice(0, 8 - startsWith.length));
   list.innerHTML = matches.map(name => `<button type="button" role="option" class="street-suggestion" data-value="${esc(name)}">${esc(name)}</button>`).join('');
   list.classList.toggle('visible', Boolean(term && matches.length));
   list.querySelectorAll('.street-suggestion').forEach(button => button.addEventListener('mousedown', event => {
     event.preventDefault(); input.value = button.dataset.value; list.classList.remove('visible');
-    if (inputId === 'street-one') updateStreetSuggestions(input.value); scheduleFilters();
+    if (inputId === 'street-one') {
+      updateStreetSuggestions(input.value);
+      renderSuggestions('street-two', 'street-two-suggestions', state.approachOptions);
+    }
+    scheduleFilters();
   }));
 }
 
@@ -203,7 +204,27 @@ function hideSuggestions() {
 
 function scheduleFilters() {
   clearTimeout(state.filterTimer);
-  state.filterTimer = setTimeout(applyFilters, 120);
+  const first = streetFamily($('street-one').value.trim());
+  const second = streetFamily($('street-two').value.trim());
+  const ready = (!first && !second) || (first && second && state.familySegments.has(first) && state.familySegments.has(second));
+  if (!ready) {
+    $('crossing-status').textContent = 'Choose two streets from the suggestions to focus a crossing.';
+    if (state.crossing) {
+      state.crossing = null;
+      state.selected = null;
+      $('profile-overlay').hidden = true;
+      $('map-distance').hidden = true;
+      $('vote-panel').hidden = true;
+      $('selected').innerHTML = '<p>Select a street on the map or choose two streets above.</p>';
+      document.querySelector('.scene-section').hidden = true;
+      updateScene(null);
+      if (state.highlightLayer) state.highlightLayer.clearLayers();
+      state.filtered = state.all;
+      renderTable();
+    }
+    return;
+  }
+  state.filterTimer = setTimeout(applyFilters, 80);
 }
 
 function pointSegmentDistance(point, start, end) {
@@ -533,12 +554,28 @@ async function init() {
   if (!response.ok) throw new Error(`Street data request failed: ${response.status}`);
   state.all = await response.json();
   fetch('data/curbs.json').then(response => response.ok ? response.json() : []).then(curbs => { state.curbs = curbs; }).catch(() => { state.curbs = []; });
-  [...new Set(state.all.map(street => street.name).filter(Boolean))].sort((a, b) => a.localeCompare(b)).forEach(name => {
-    const option = document.createElement('option');
-    option.value = name;
-    $('street-names').appendChild(option);
-  });
   state.streetNames = [...new Set(state.all.map(street => street.name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  state.streetOptions = state.streetNames.map(name => ({ name, normalized: normalizeStreet(name), family: streetFamily(name) }));
+  state.approachOptions = state.streetOptions;
+  state.all.forEach(street => {
+    if (!street.name) return;
+    const family = streetFamily(street.name);
+    if (!state.familyNames.has(family)) state.familyNames.set(family, new Set());
+    state.familyNames.get(family).add(street.name);
+    if (!state.familySegments.has(family)) state.familySegments.set(family, []);
+    state.familySegments.get(family).push(street);
+  });
+  const ignoredEndpoints = new Set(['', 'none', 'end', 'segment break']);
+  state.all.forEach(street => {
+    const family = streetFamily(street.name || '');
+    if (!family) return;
+    for (const endpoint of [street.fromStreet, street.toStreet]) {
+      const connected = streetFamily(endpoint || '');
+      if (ignoredEndpoints.has(connected) || connected === family || !state.familyNames.has(connected)) continue;
+      if (!state.connectedFamilies.has(family)) state.connectedFamilies.set(family, new Set());
+      state.connectedFamilies.get(family).add(connected);
+    }
+  });
   if (window.L) {
     state.map = L.map('map').setView([39.6, -105.02], 12);
     state.renderer = L.canvas({ padding: 0.5 });
@@ -561,11 +598,16 @@ async function init() {
   } else {
     $('map').innerHTML = '<div class="map-fallback"><strong>Map view unavailable</strong><p>The street table and estimates are still available. Connect to the internet and reload to enable the interactive map.</p></div>';
   }
-  $('street-one').addEventListener('input', () => { const value = $('street-one').value.trim(); updateStreetSuggestions(value); renderSuggestions('street-one', 'street-one-suggestions', state.all.map(street => street.name).filter(Boolean)); renderSuggestions('street-two', 'street-two-suggestions', [...$('street-names').options].map(option => option.value)); scheduleFilters(); });
-  $('street-two').addEventListener('input', () => { renderSuggestions('street-two', 'street-two-suggestions', [...$('street-names').options].map(option => option.value)); scheduleFilters(); });
+  $('street-one').addEventListener('input', () => {
+    updateStreetSuggestions($('street-one').value.trim());
+    renderSuggestions('street-one', 'street-one-suggestions', state.streetOptions);
+    renderSuggestions('street-two', 'street-two-suggestions', state.approachOptions);
+    scheduleFilters();
+  });
+  $('street-two').addEventListener('input', () => { renderSuggestions('street-two', 'street-two-suggestions', state.approachOptions); scheduleFilters(); });
   document.querySelectorAll('#street-one,#street-two').forEach(input => input.addEventListener('focus', () => {
-    if (input.id === 'street-one') renderSuggestions('street-one', 'street-one-suggestions', state.all.map(street => street.name).filter(Boolean));
-    else renderSuggestions('street-two', 'street-two-suggestions', [...$('street-names').options].map(option => option.value));
+    if (input.id === 'street-one') renderSuggestions('street-one', 'street-one-suggestions', state.streetOptions);
+    else renderSuggestions('street-two', 'street-two-suggestions', state.approachOptions);
   }));
   document.addEventListener('click', event => { if (!event.target.closest('.street-suggestions') && !event.target.matches('#street-one,#street-two')) hideSuggestions(); });
   $('reset-crossing').addEventListener('click', () => {
@@ -584,9 +626,9 @@ async function init() {
     const first = $('street-one').value; $('street-one').value = $('street-two').value; $('street-two').value = first;
     state.direction = 'one-from-two';
     updateStreetSuggestions($('street-one').value.trim());
-    renderSuggestions('street-one', 'street-one-suggestions', state.all.map(street => street.name).filter(Boolean));
-    renderSuggestions('street-two', 'street-two-suggestions', [...$('street-names').options].map(option => option.value));
-    applyFilters();
+    renderSuggestions('street-one', 'street-one-suggestions', state.streetOptions);
+    renderSuggestions('street-two', 'street-two-suggestions', state.approachOptions);
+    scheduleFilters();
   });
   $('vote-adequate').dataset.vote = 'adequate'; $('vote-inadequate').dataset.vote = 'inadequate';
   $('vote-adequate').addEventListener('click', () => castVote('adequate')); $('vote-inadequate').addEventListener('click', () => castVote('inadequate'));
