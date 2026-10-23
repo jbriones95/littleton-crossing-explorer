@@ -100,41 +100,45 @@ function curbCrossingDistance(street, point) {
   if (!streetLength) return null;
   const streetDirection = [streetVector[0] / streetLength, streetVector[1] / streetLength];
   const lateral = [-streetDirection[1], streetDirection[0]];
+  const targetSegments = state.crossing?.targetSegments?.filter(segment => streetMatches(segment, street.name)) || [street];
+  const centerOffsets = targetSegments.map(segment => {
+    const trackPoint = nearestPoint(segment, point);
+    const local = localVector([point[1], point[0]], [trackPoint[1], trackPoint[0]], point[0]);
+    return local[0] * lateral[0] + local[1] * lateral[1];
+  });
+  if (!centerOffsets.length) return null;
+  const leftLimit = Math.min(...centerOffsets);
+  const rightLimit = Math.max(...centerOffsets);
   const candidates = [];
   state.curbs.forEach(curbedge => {
     const coordinates = curbedge.coordinates;
-    let nearestIndex = 0; let nearestDistance = Infinity;
-    coordinates.forEach((coordinate, index) => {
-      const distance = Math.hypot(...localVector([point[1], point[0]], [coordinate[0], coordinate[1]], point[0]));
-      if (distance < nearestDistance) { nearestDistance = distance; nearestIndex = index; }
-    });
-    // Corner curb geometry can be slightly diagonal at an intersection, so
-    // allow a generous local angle while still rejecting perpendicular curbs.
-    if (nearestDistance > 80) return;
-    // Use the edge's dominant direction rather than the tiny corner tangent.
-    // This keeps a diagonal curb return from being mistaken for a roadway edge.
-    const first = coordinates[0]; const last = coordinates[coordinates.length - 1];
-    let before = first; let after = last;
-    const endpointLength = Math.hypot(...localVector([first[1], first[0]], [last[1], last[0]], point[0]));
-    if (endpointLength < 5) {
-      const far = coordinates.reduce((best, coordinate) => Math.hypot(...localVector([first[1], first[0]], [coordinate[0], coordinate[1]], point[0])) > best.distance ? { coordinate, distance: Math.hypot(...localVector([first[1], first[0]], [coordinate[0], coordinate[1]], point[0])) } : best, { coordinate: first, distance: 0 }).coordinate;
-      after = coordinates.reduce((best, coordinate) => Math.hypot(...localVector([far[1], far[0]], [coordinate[0], coordinate[1]], point[0])) > best.distance ? { coordinate, distance: Math.hypot(...localVector([far[1], far[0]], [coordinate[0], coordinate[1]], point[0])) } : best, { coordinate: far, distance: 0 }).coordinate;
-      before = far;
+    let nearest = null;
+    for (let index = 1; index < coordinates.length; index++) {
+      const start = localVector([point[1], point[0]], coordinates[index - 1], point[0]);
+      const end = localVector([point[1], point[0]], coordinates[index], point[0]);
+      const edge = [end[0] - start[0], end[1] - start[1]];
+      const edgeLengthSquared = edge[0] ** 2 + edge[1] ** 2;
+      if (!edgeLengthSquared) continue;
+      const edgeLength = Math.sqrt(edgeLengthSquared);
+      const parallel = Math.abs((edge[0] * streetDirection[0] + edge[1] * streetDirection[1]) / edgeLength);
+      if (parallel < 0.7) continue;
+      const fraction = Math.max(0, Math.min(1, -(start[0] * edge[0] + start[1] * edge[1]) / edgeLengthSquared));
+      const closest = [start[0] + fraction * edge[0], start[1] + fraction * edge[1]];
+      const distance = Math.hypot(closest[0], closest[1]);
+      if (!nearest || distance < nearest.distance) nearest = { closest, distance };
     }
-    const edgeVector = localVector([before[1], before[0]], [after[1], after[0]], point[0]);
-    const edgeLength = Math.hypot(...edgeVector);
-    if (!edgeLength) return;
-    const parallel = Math.abs((edgeVector[0] * streetDirection[0] + edgeVector[1] * streetDirection[1]) / edgeLength);
-    if (parallel < 0.7) return;
-    const local = localVector([point[1], point[0]], coordinates[nearestIndex], point[0]);
-    candidates.push(local[0] * lateral[0] + local[1] * lateral[1]);
+    // Work from the nearby edge segment's tangent. Closed curb-pan polygons
+    // can have endpoints whose overall direction is unrelated to the curb face.
+    if (!nearest || nearest.distance > 80) return;
+    candidates.push(nearest.closest[0] * lateral[0] + nearest.closest[1] * lateral[1]);
   });
-  if (candidates.length < 2) return null;
-  candidates.sort((a, b) => a - b);
-  // Drop one outer corner candidate when several curb returns surround the
-  // intersection. The roadway edges are usually the inner extremes.
-  if (candidates.length > 4) { candidates.shift(); candidates.pop(); }
-  const width = Math.max(...candidates) - Math.min(...candidates);
+  // If the street is divided, curb-pan polygons around its median can also
+  // run parallel to the roadway. Keep only curb faces outside the outermost
+  // target centerlines, choosing the face nearest the traveled roadway.
+  const leftCurbs = candidates.filter(offset => offset < leftLimit);
+  const rightCurbs = candidates.filter(offset => offset > rightLimit);
+  if (!leftCurbs.length || !rightCurbs.length) return null;
+  const width = Math.min(...rightCurbs) - Math.max(...leftCurbs);
   return width >= 10 && width <= 160 ? Math.round(width) : null;
 }
 
