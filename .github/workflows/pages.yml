@@ -22,10 +22,11 @@ jobs:
       - name: Prepare site artifact
         run: |
           mkdir -p _site/data _site/n712kv0.6.0
-          cp index.html app.js styles.css _site/
+          cp index.html app.js styles.css favicon.svg _site/
           cp data/streets.json data/curbs.json _site/data/
           cp n712kv0.6.0/*.woff2 _site/n712kv0.6.0/
           sed -i "s|href=\"styles.css\"|href=\"styles.css?v=${GITHUB_SHA}\"|" _site/index.html
+          sed -i "s|href=\"favicon.svg\"|href=\"favicon.svg?v=${GITHUB_SHA}\"|" _site/index.html
           sed -i "s|src=\"app.js\"|src=\"app.js?v=${GITHUB_SHA}\"|" _site/index.html
           sed -i 's|<html lang="en">|<html lang="en" data-voting="disabled">|' _site/index.html
           touch _site/.nojekyll
