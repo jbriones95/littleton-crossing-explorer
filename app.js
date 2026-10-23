@@ -292,7 +292,10 @@ function renderProfileOverlay(street) {
     `<div class="profile-results">${movementProfiles.map(profile => {
       const needed = Math.ceil(distance / profile.speed);
       const canCross = available ? needed <= available : null;
-      return `<div class="profile-result ${canCross === true ? 'can-cross' : canCross === false ? 'cannot-cross' : 'unknown'}"><span class="profile-result-icon" aria-hidden="true">${profile.emoji}</span><span class="profile-result-name">${profile.name}<small>${profile.speed.toFixed(1)} ft/sec · ${needed} sec needed</small></span><strong>${canCross === null ? '—' : canCross ? 'YES' : 'NO'}</strong></div>`;
+      const secondsLeft = canCross === true ? available - needed : null;
+      const resultClass = canCross === null ? 'unknown' : canCross ? secondsLeft <= 7 ? 'tight-time' : 'can-cross' : 'cannot-cross';
+      const timingDetail = canCross === true ? `${needed} sec needed · ${secondsLeft} sec left` : `${needed} sec needed`;
+      return `<div class="profile-result ${resultClass}"><span class="profile-result-icon" aria-hidden="true">${profile.emoji}</span><span class="profile-result-name">${profile.name}<small>${profile.speed.toFixed(1)} ft/sec · ${timingDetail}</small></span><strong>${canCross === null ? '—' : canCross ? 'YES' : 'NO'}</strong></div>`;
     }).join('')}</div>`;
 }
 
