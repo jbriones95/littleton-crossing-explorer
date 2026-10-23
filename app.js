@@ -139,7 +139,7 @@ function curbCrossingDistance(street, point) {
 }
 
 function crossingPoint(street) {
-  const approach = state.crossing?.approach;
+  const approach = state.crossing?.crossingApproach;
   const targets = state.crossing?.targetSegments?.filter(segment => streetMatches(segment, street.name)) || [];
   if (!approach || !targets.length) return null;
   const reference = center(approach);
@@ -442,7 +442,10 @@ function applyFilters() {
   const areas = crossingAreas(crossedStreet, approachStreet);
   const crossingStreet = focused ? areas.find(street => streetMatches(street, crossedStreet)) : null;
   const targetSegments = crossingStreet ? areas.filter(street => streetMatches(street, crossedStreet)) : [];
-  state.crossing = crossingStreet ? { street: crossingStreet, approach: approachStreet, targetSegments } : null;
+  const crossingApproach = crossingStreet
+    ? areas.find(segment => !streetMatches(segment, crossedStreet) && streetMatches(segment, approachStreet)) || areas.find(segment => !streetMatches(segment, crossedStreet))
+    : null;
+  state.crossing = crossingStreet ? { street: crossingStreet, approach: approachStreet, crossingApproach, targetSegments } : null;
   const mapDistance = $('map-distance');
   renderProfileOverlay(crossingStreet);
   if (crossingStreet) {
