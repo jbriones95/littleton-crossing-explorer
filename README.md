@@ -20,4 +20,4 @@ The site uses Leaflet and Esri's World Street Map tiles with linked attribution.
 
 ## Important limitation
 
-The site calculates informational clearance estimates from curb-to-curb geometry when the supplied curb dataset provides a reliable pair; otherwise it falls back to recorded street width. The pedestrian-crossing Yes/No indicator is limited to crossings identified by the app's known signal-timing data; it is not a complete crosswalk inventory. The site does not contain or represent official Littleton signal timing plans.
+Crossing-focused clearance estimates use the distance between curb edges in the supplied curb dataset. If a reliable curb-edge pair is not available for a crossing, the site reports the curb-to-curb distance as unavailable instead of substituting recorded street width. Outside a selected crossing, displayed roadway widths are the supplied recorded widths and are not curb measurements. The pedestrian-crossing Yes/No indicator is limited to crossings identified by the app's known signal-timing data; it is not a complete crosswalk inventory. The site does not contain or represent official Littleton signal timing plans.

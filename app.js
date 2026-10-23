@@ -284,6 +284,10 @@ function renderProfileOverlay(street) {
   const distance = crossingDistance(street);
   const available = signalTiming(street);
   overlay.hidden = false;
+  if (!distance) {
+    overlay.innerHTML = '<div class="profile-overlay-title">Can everyone cross?</div><div class="profile-overlay-subtitle">Curb-to-curb distance is unavailable because a reliable pair of curb edges was not found.</div>';
+    return;
+  }
   overlay.innerHTML = `<div class="profile-overlay-title">Can everyone cross?</div><div class="profile-overlay-subtitle">${distance.toLocaleString()} ft${available ? ` · ${available}-second reported timing` : ' · no reported timing available'}</div>` +
     `<div class="profile-results">${movementProfiles.map(profile => {
       const needed = Math.ceil(distance / profile.speed);
@@ -294,9 +298,7 @@ function renderProfileOverlay(street) {
 
 function crossingDistance(street) {
   if (state.crossing?.targetSegments?.includes(street)) {
-    const curbDistance = curbCrossingDistance(street, crossingPoint(street));
-    if (curbDistance) return curbDistance;
-    return state.crossing.targetSegments.reduce((total, segment) => total + (Number(segment.widthFt) || 0), 0);
+    return curbCrossingDistance(street, crossingPoint(street));
   }
   return Number(street?.widthFt) || 0;
 }
@@ -360,8 +362,9 @@ async function castVote(vote) {
 
 function popup(street) {
   const timing = signalTiming(street);
+  const distance = crossingDistance(street);
   return `<strong>${esc(street.name)}</strong><br>${esc(street.roadClass || 'Road class unavailable')}<br>` +
-    `${state.crossing?.targetSegments?.includes(street) ? 'Total crossing distance' : 'Crossing distance'}: <strong>${number(crossingDistance(street), 'not available')} ft</strong><br>` +
+    `${state.crossing?.targetSegments?.includes(street) ? 'Curb-to-curb crossing distance' : 'Recorded roadway width (not curb measured)'}: <strong>${distance ? `${number(distance)} ft` : 'not available'}</strong><br>` +
     `Estimated clearance: <strong>${crossingClearance(street) ? crossingClearance(street) + ' seconds' : 'not available'}</strong><br>` +
     (timing ? `<strong>Reported signal timing:</strong> ${timing} seconds<br>` : '') +
     '<small>Estimate only; not official signal timing.</small>';
@@ -379,6 +382,7 @@ function updateScene(street) {
   const distanceStat = $('scene-distance-stat'); const neededStat = $('scene-needed-stat'); const availableStat = $('scene-available-stat');
   $('scene-restart').disabled = !street;
   const distance = crossingDistance(street);
+  document.querySelector('.scene-section').hidden = !(state.crossing && distance);
   const walkingSeconds = crossingClearance(street);
   const availableSeconds = signalTiming(street) || walkingSeconds;
   if (!distance || !walkingSeconds || !availableSeconds) {
@@ -414,11 +418,12 @@ function updateScene(street) {
 function selectStreet(street) {
   state.selected = street;
   const context = state.crossing;
+  const distance = crossingDistance(street);
   $('selected').innerHTML = `<h3>${context ? 'Your crossing' : 'Selected street'}: ${esc(street.name)}</h3>` +
     (context ? `<p class="crossing-context"><strong>Crossing:</strong> ${esc(street.name)}<br><strong>Coming from:</strong> ${esc(context.approach)}</p>` : '') +
     (context ? '' : `<p class="muted">${esc(street.fromStreet || '')} to ${esc(street.toStreet || '')}</p>`) +
     '<div class="stats">' +
-    `<div class="stat"><strong>${number(crossingDistance(street), 'Not available')} ft</strong><span>${context ? 'Total crossing distance' : 'Crossing distance'}</span></div>` +
+    `<div class="stat"><strong>${distance ? `${number(distance)} ft` : 'Not available'}</strong><span>${context ? 'Curb-to-curb distance' : 'Recorded roadway width, not curb measured'}</span></div>` +
     `<div class="stat"><strong>${crossingClearance(street) ? crossingClearance(street) + ' sec' : '—'}</strong><span>Estimated clearance</span></div>` +
     `<div class="stat"><strong>${number(crossingLanes(street))}</strong><span>${context ? 'Total lanes' : 'Number of lanes'}</span></div>` +
     `<div class="stat"><strong>${hasPedestrianCrossing(street) ? 'Yes' : 'No'}</strong><span>Pedestrian crossing</span></div>` +
@@ -459,7 +464,9 @@ function applyFilters() {
   if (crossingStreet) {
     mapDistance.hidden = false;
     const curbDistance = curbCrossingDistance(crossingStreet, crossingPoint(crossingStreet));
-    mapDistance.textContent = `${curbDistance ? 'Curb-to-curb crossing distance' : 'Recorded crossing distance'}: ${crossingDistance(crossingStreet).toLocaleString()} ft`;
+    mapDistance.textContent = curbDistance
+      ? `Curb-to-curb crossing distance: ${curbDistance.toLocaleString()} ft`
+      : 'Curb-to-curb distance unavailable: reliable curb edges not found.';
   }
   else mapDistance.hidden = true;
   $('crossing-status').textContent = focused
@@ -483,16 +490,23 @@ function applyFilters() {
     const approachCenter = center(approachSegment);
     const targetPoints = targetSegmentsOnMap.map(street => nearestPoint(street, approachCenter));
     const crossingPoint = targetPoints.reduce((sum, point) => [sum[0] + point[0] / targetPoints.length, sum[1] + point[1] / targetPoints.length], [0, 0]);
-    const endpoints = crossingLine(crossingStreet, crossingPoint, crossingDistance(crossingStreet));
-    L.polyline(endpoints, { color: '#fff3c4', weight: 18, opacity: .95 }).addTo(state.highlightLayer);
-    L.polyline(endpoints, { color: '#ee4d8d', weight: 10, opacity: 1 }).bindPopup(popup(crossingStreet)).on('click', () => selectStreet(state.crossing?.street || crossingStreet)).addTo(state.highlightLayer);
-    const approachPoint = endpoints.reduce((closest, point) => {
-      const approachEdge = nearestPoint(approachSegment, point);
-      const distance = (point[0] - approachEdge[0]) ** 2 + (point[1] - approachEdge[1]) ** 2;
-      return distance < closest.distance ? { point, distance } : closest;
-    }, { point: endpoints[0], distance: Infinity }).point;
-    L.circleMarker(approachPoint, { color: '#20b9c4', fillColor: '#20b9c4', fillOpacity: .95, radius: 8, weight: 3 }).bindPopup(popup(approachSegment)).on('click', () => selectStreet(state.crossing?.street || crossingStreet)).addTo(state.highlightLayer);
-    focusPoints.push(...endpoints, approachPoint);
+    const measuredDistance = crossingDistance(crossingStreet);
+    if (measuredDistance) {
+      const endpoints = crossingLine(crossingStreet, crossingPoint, measuredDistance);
+      L.polyline(endpoints, { color: '#fff3c4', weight: 18, opacity: .95 }).addTo(state.highlightLayer);
+      L.polyline(endpoints, { color: '#ee4d8d', weight: 10, opacity: 1 }).bindPopup(popup(crossingStreet)).on('click', () => selectStreet(state.crossing?.street || crossingStreet)).addTo(state.highlightLayer);
+      const approachPoint = endpoints.reduce((closest, point) => {
+        const approachEdge = nearestPoint(approachSegment, point);
+        const distance = (point[0] - approachEdge[0]) ** 2 + (point[1] - approachEdge[1]) ** 2;
+        return distance < closest.distance ? { point, distance } : closest;
+      }, { point: endpoints[0], distance: Infinity }).point;
+      L.circleMarker(approachPoint, { color: '#20b9c4', fillColor: '#20b9c4', fillOpacity: .95, radius: 8, weight: 3 }).bindPopup(popup(approachSegment)).on('click', () => selectStreet(state.crossing?.street || crossingStreet)).addTo(state.highlightLayer);
+      focusPoints.push(...endpoints, approachPoint);
+    } else {
+      focusPoints.push(...targetPoints, approachCenter);
+      L.circleMarker(crossingPoint, { color: '#ee4d8d', fillColor: '#ee4d8d', fillOpacity: .9, radius: 8, weight: 3 }).addTo(state.highlightLayer);
+      L.circleMarker(approachCenter, { color: '#20b9c4', fillColor: '#20b9c4', fillOpacity: .9, radius: 8, weight: 3 }).addTo(state.highlightLayer);
+    }
   } else matches.forEach(street => {
     const point = center(street); focusPoints.push(point);
     L.circleMarker(point, { color: '#20b9c4', fillColor: '#20b9c4', fillOpacity: .9, radius: 8, weight: 3 }).addTo(state.highlightLayer);
