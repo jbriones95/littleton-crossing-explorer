@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Is it safe to cross? | Littleton crossing explorer</title>
+  <meta name="description" content="Explore Littleton street data and estimated pedestrian crossing clearance times.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <h1>Is it safe to cross?</h1>
+      <p class="subtitle">A Littleton pedestrian crossing time explorer</p>
+    </div>
+  </header>
+  <main id="main" class="wrap">
+    <section class="notice" aria-labelledby="notice-title">
+      <h2 id="notice-title">Important information</h2>
+      <p>This site shows estimates derived from street-centerline data and Colorado pedestrian-signal guidance. Crossing estimates are informational and are not guaranteed.</p>
+    </section>
+
+    <section class="controls" aria-labelledby="controls-title">
+        <h2 id="controls-title">1. Choose a crossing</h2>
+      <div class="control-grid">
+        <div class="journey-inputs">
+          <span class="journey-intro">I want to cross</span>
+          <label>
+            <input id="street-one" type="search" placeholder="Choose a street" autocomplete="off">
+            <div id="street-one-suggestions" class="street-suggestions" role="listbox" aria-label="Crossing street suggestions"></div>
+          </label>
+          <span class="journey-connector">coming from</span>
+          <label>
+            <input id="street-two" type="search" placeholder="Choose a street" autocomplete="off">
+            <div id="street-two-suggestions" class="street-suggestions" role="listbox" aria-label="Approach street suggestions"></div>
+          </label>
+          <button id="swap-crossing" class="secondary-button" type="button" title="Swap the street you cross and the street you start from">⇄ Swap direction</button>
+          <button id="reset-crossing" class="secondary-button" type="button">Reset crossing</button>
+        </div>
+        <datalist id="street-names"></datalist>
+      </div>
+      <p id="result-count" class="muted" aria-live="polite"></p>
+    </section>
+
+    <section class="map-section" aria-labelledby="map-title">
+       <div class="section-heading"><h2 id="map-title">2. See the crossing</h2></div>
+      <div class="map-card">
+        <div id="map" role="application" aria-label="Map of Littleton street segments"></div>
+        <div id="map-distance" class="map-distance" hidden></div>
+        <aside id="profile-overlay" class="profile-overlay" hidden aria-live="polite"></aside>
+        <div class="map-legend" aria-label="Map legend">
+          <span class="legend-title">Crossing focus</span>
+          <span><i class="legend-dot crossing" aria-hidden="true"></i>Street being crossed</span>
+          <span><i class="legend-dot approach" aria-hidden="true"></i>Approach point</span>
+          <span id="crossing-status" class="crossing-status" aria-live="polite">Enter two street names to focus a crossing.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="details" aria-labelledby="details-title">
+      <h2 id="details-title">3. Crossing details</h2>
+      <div id="selected" class="selected-card"><p>Select a street on the map or in the table.</p></div>
+      <div id="vote-panel" class="vote-panel" hidden>
+        <h3>Is this crossing time adequate?</h3>
+        <p class="muted">Share your experience for this crossing. You can change your vote later.</p>
+        <div class="vote-actions">
+          <button id="vote-adequate" type="button">👍 Adequate</button>
+          <button id="vote-inadequate" type="button">👎 Too short</button>
+        </div>
+        <p id="vote-counts" class="vote-counts" aria-live="polite"></p>
+        <p id="vote-message" class="muted" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section class="scene-section" aria-labelledby="scene-title" hidden>
+      <div class="section-heading"><h2 id="scene-title">4. See the time available</h2><p class="muted">Illustrative 3D view</p></div>
+      <p class="scene-intro">See how the selected movement profile compares with the available crossing time. This preview is illustrative, not an engineering model.</p>
+      <div id="crossing-scene" class="scene-stage" role="img" aria-label="Illustrative three-dimensional pedestrian crossing preview">
+        <div class="scene-sky"></div>
+        <div class="scene-horizon" aria-hidden="true"><div class="scene-building building-a"></div><div class="scene-building building-b"></div><div class="scene-building building-c"></div><div class="scene-tree tree-a"></div><div class="scene-tree tree-b"></div></div>
+        <div class="scene-road"><div class="scene-crosswalk" aria-hidden="true"></div><div class="scene-curb curb-near" aria-hidden="true"></div><div class="scene-curb curb-far" aria-hidden="true"></div></div>
+        <div class="scene-signal-pole" aria-hidden="true"><div class="scene-signal-box"><i></i><i></i><i></i></div></div>
+        <div class="scene-sidewalk sidewalk-far" aria-hidden="true"></div><div class="scene-sidewalk sidewalk-near" aria-hidden="true"></div>
+        <span class="scene-label scene-start">Start</span><span id="scene-road-label" class="scene-label scene-road-name">Crossing street</span><span class="scene-label scene-end">Other side</span>
+        <span id="scene-distance" class="scene-distance">-- ft</span>
+        <div id="scene-signal" class="scene-signal" aria-live="polite"><span aria-hidden="true">—</span> WAIT</div>
+        <div id="scene-person" class="scene-person" aria-hidden="true">🚶</div>
+        <div id="scene-timer" class="scene-timer">--</div>
+      </div>
+      <div class="scene-stats" aria-label="Crossing preview summary">
+        <div><span>Distance</span><strong id="scene-distance-stat">--</strong></div>
+        <div><span>Time needed</span><strong id="scene-needed-stat">--</strong></div>
+        <div><span>Time available</span><strong id="scene-available-stat">--</strong></div>
+      </div>
+      <p id="scene-summary" class="scene-summary" aria-live="polite">Enter two streets to start the crossing preview.</p>
+      <button id="scene-restart" class="secondary-button scene-restart" type="button" disabled>↻ Restart crossing</button>
+    </section>
+
+    <details class="street-data">
+      <summary><span id="table-title">Street data</span><span class="muted">Optional table view</span></summary>
+      <p class="muted">The table provides a keyboard-accessible alternative to the map.</p>
+      <div class="table-wrap">
+        <table>
+          <caption class="sr-only">Littleton street segments and estimated pedestrian clearance times</caption>
+          <thead><tr><th scope="col">Street</th><th scope="col">Classification</th><th scope="col">Width</th><th scope="col">Lanes</th><th scope="col">Estimated clearance</th><th scope="col">Pedestrian crossing</th></tr></thead>
+          <tbody id="street-table"></tbody>
+        </table>
+      </div>
+    </details>
+
+    <section class="method" aria-labelledby="method-title">
+      <h2 id="method-title">How estimates work</h2>
+       <p>We estimate each movement profile's crossing time by dividing the crossing distance by its walking speed and rounding up. The map overlay compares those estimates with reported signal timing when available.</p>
+       <p><a href="https://www.codot.gov/safety/traffic-safety/assets/documents/guidelines-for-pedestrian-signal-timing" target="_blank" rel="noopener">Read the CDOT Guidelines for Pedestrian Signal Timing</a></p>
+    </section>
+  </main>
+  <footer class="site-footer"><div class="wrap"><p>Data source: supplied Littleton street-centerline dataset. Estimates are informational only.</p><p>For official timing plans, contact Littleton Public Works / Traffic Operations at <a href="tel:+13037953863">303-795-3863</a>.</p><p class="creator-credit">Created by <a href="https://github.com/jbriones95" target="_blank" rel="noopener">Jose Briones</a></p></div></footer>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="data/streets.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
