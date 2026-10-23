@@ -327,6 +327,13 @@ async function loadVotes() {
   state.voteKey = key;
   if (!key) { panel.hidden = true; return; }
   panel.hidden = false;
+  if (document.documentElement.dataset.voting === 'disabled') {
+    $('vote-counts').textContent = '';
+    $('vote-message').textContent = 'Community voting is unavailable on this static site.';
+    document.querySelectorAll('.vote-actions button').forEach(button => { button.disabled = true; });
+    return;
+  }
+  document.querySelectorAll('.vote-actions button').forEach(button => { button.disabled = false; });
   $('vote-message').textContent = 'Loading community responses…';
   try {
     const response = await fetch(`/api/votes?key=${encodeURIComponent(key)}&browserId=${encodeURIComponent(browserId())}`);
@@ -340,6 +347,7 @@ async function loadVotes() {
 }
 
 async function castVote(vote) {
+  if (document.documentElement.dataset.voting === 'disabled') return;
   const key = state.voteKey || voteKey();
   if (!key) return;
   $('vote-message').textContent = 'Saving your vote…';

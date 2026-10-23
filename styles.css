@@ -62,3 +62,4 @@ body{font-size:12px}.site-header h1{font-size:24px}.subtitle,.notice p,.section-
 .site-header .subtitle{font-family:"Press Start 2P",monospace;font-size:16px;line-height:1.7}@media(max-width:600px){.site-header .subtitle{font-size:12px;line-height:1.6}}
 .map-legend{font-size:10px}.map-legend .legend-title{font-size:10px}.crossing-status{font-size:10px}
 .site-footer p,.site-footer a{font-size:10px;line-height:1.6}@media(max-width:600px){.site-footer p,.site-footer a{font-size:8px}}
+ .vote-actions button:disabled{opacity:.55;cursor:not-allowed}
