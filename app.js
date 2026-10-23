@@ -1,4 +1,4 @@
-const state = { all: [], curbs: [], streetNames: [], streetOptions: [], approachOptions: [], familyNames: new Map(), familySegments: new Map(), connectedFamilies: new Map(), filtered: [], speed: 3.5, direction: 'one-from-two', map: null, layer: null, highlightLayer: null, renderer: null, selected: null, crossing: null, sceneFrame: null, sceneStreet: null, filterTimer: null, boundsCache: new WeakMap(), geometryCache: new WeakMap() };
+const state = { all: [], streetNames: [], streetOptions: [], approachOptions: [], familyNames: new Map(), familySegments: new Map(), connectedFamilies: new Map(), filtered: [], speed: 3.5, direction: 'one-from-two', map: null, layer: null, highlightLayer: null, renderer: null, selected: null, crossing: null, sceneFrame: null, sceneStreet: null, filterTimer: null, boundsCache: new WeakMap(), geometryCache: new WeakMap() };
 const movementProfiles = [
   { name: 'Adult', emoji: '🚶', speed: 3.5 },
   { name: 'Child', emoji: '👦', speed: 3 },
@@ -85,61 +85,6 @@ function crossingLine(street, point, widthFeet) {
   const east = (end[1] - start[1]) * longitudeScale; const north = (end[0] - start[0]) * latitudeScale;
   const length = Math.hypot(east, north) || 1; const perpendicularEast = -north / length; const perpendicularNorth = east / length; const half = widthFeet / 2;
   return [[point[0] - perpendicularNorth * half / latitudeScale, point[1] - perpendicularEast * half / longitudeScale], [point[0] + perpendicularNorth * half / latitudeScale, point[1] + perpendicularEast * half / longitudeScale]];
-}
-
-function localVector(a, b, latitude) {
-  const latitudeScale = 364000;
-  return [(b[0] - a[0]) * latitudeScale * Math.cos(latitude * Math.PI / 180), (b[1] - a[1]) * latitudeScale];
-}
-
-function curbCrossingDistance(street, point) {
-  if (!state.curbs.length || !street?.geometry || !point) return null;
-  const streetPoints = streetGeometry(street).flat();
-  const streetVector = localVector([streetPoints[0][1], streetPoints[0][0]], [streetPoints[streetPoints.length - 1][1], streetPoints[streetPoints.length - 1][0]], point[0]);
-  const streetLength = Math.hypot(...streetVector);
-  if (!streetLength) return null;
-  const streetDirection = [streetVector[0] / streetLength, streetVector[1] / streetLength];
-  const lateral = [-streetDirection[1], streetDirection[0]];
-  const targetSegments = state.crossing?.targetSegments?.filter(segment => streetMatches(segment, street.name)) || [street];
-  const centerOffsets = targetSegments.map(segment => {
-    const trackPoint = nearestPoint(segment, point);
-    const local = localVector([point[1], point[0]], [trackPoint[1], trackPoint[0]], point[0]);
-    return local[0] * lateral[0] + local[1] * lateral[1];
-  });
-  if (!centerOffsets.length) return null;
-  const leftLimit = Math.min(...centerOffsets);
-  const rightLimit = Math.max(...centerOffsets);
-  const candidates = [];
-  state.curbs.forEach(curbedge => {
-    const coordinates = curbedge.coordinates;
-    let nearest = null;
-    for (let index = 1; index < coordinates.length; index++) {
-      const start = localVector([point[1], point[0]], coordinates[index - 1], point[0]);
-      const end = localVector([point[1], point[0]], coordinates[index], point[0]);
-      const edge = [end[0] - start[0], end[1] - start[1]];
-      const edgeLengthSquared = edge[0] ** 2 + edge[1] ** 2;
-      if (!edgeLengthSquared) continue;
-      const edgeLength = Math.sqrt(edgeLengthSquared);
-      const parallel = Math.abs((edge[0] * streetDirection[0] + edge[1] * streetDirection[1]) / edgeLength);
-      if (parallel < 0.7) continue;
-      const fraction = Math.max(0, Math.min(1, -(start[0] * edge[0] + start[1] * edge[1]) / edgeLengthSquared));
-      const closest = [start[0] + fraction * edge[0], start[1] + fraction * edge[1]];
-      const distance = Math.hypot(closest[0], closest[1]);
-      if (!nearest || distance < nearest.distance) nearest = { closest, distance };
-    }
-    // Work from the nearby edge segment's tangent. Closed curb-pan polygons
-    // can have endpoints whose overall direction is unrelated to the curb face.
-    if (!nearest || nearest.distance > 80) return;
-    candidates.push(nearest.closest[0] * lateral[0] + nearest.closest[1] * lateral[1]);
-  });
-  // If the street is divided, curb-pan polygons around its median can also
-  // run parallel to the roadway. Keep only curb faces outside the outermost
-  // target centerlines, choosing the face nearest the traveled roadway.
-  const leftCurbs = candidates.filter(offset => offset < leftLimit);
-  const rightCurbs = candidates.filter(offset => offset > rightLimit);
-  if (!leftCurbs.length || !rightCurbs.length) return null;
-  const width = Math.min(...rightCurbs) - Math.max(...leftCurbs);
-  return width >= 10 && width <= 160 ? Math.round(width) : null;
 }
 
 function crossingPoint(street) {
@@ -310,10 +255,10 @@ function renderProfileOverlay(street) {
   const available = signalTiming(street);
   overlay.hidden = false;
   if (!distance) {
-    overlay.innerHTML = '<div class="profile-overlay-title">Can everyone cross?</div><div class="profile-overlay-subtitle">Curb-to-curb distance is unavailable because a reliable pair of curb edges was not found.</div>';
+    overlay.innerHTML = '<div class="profile-overlay-title">Can everyone cross?</div><div class="profile-overlay-subtitle">Recorded roadway width is unavailable for this street.</div>';
     return;
   }
-  overlay.innerHTML = `<div class="profile-overlay-title">Can everyone cross?</div><div class="profile-overlay-subtitle">${distance.toLocaleString()} ft${available ? ` · ${available}-second reported timing` : ' · no reported timing available'}</div>` +
+  overlay.innerHTML = `<div class="profile-overlay-title">Can everyone cross?</div><div class="profile-overlay-subtitle">${distance.toLocaleString()} ft recorded roadway width${available ? ` · ${available}-second reported timing` : ' · no reported timing available'}</div>` +
     `<div class="profile-results">${movementProfiles.map(profile => {
       const needed = Math.ceil(distance / profile.speed);
       const canCross = available ? needed <= available : null;
@@ -326,7 +271,8 @@ function renderProfileOverlay(street) {
 
 function crossingDistance(street) {
   if (state.crossing?.targetSegments?.includes(street)) {
-    return curbCrossingDistance(street, crossingPoint(street));
+    const width = state.crossing.targetSegments.reduce((total, segment) => total + (Number(segment.widthFt) || 0), 0);
+    return width > 0 ? width : null;
   }
   return Number(street?.widthFt) || 0;
 }
@@ -392,7 +338,7 @@ function popup(street) {
   const timing = signalTiming(street);
   const distance = crossingDistance(street);
   return `<strong>${esc(street.name)}</strong><br>${esc(street.roadClass || 'Road class unavailable')}<br>` +
-    `${state.crossing?.targetSegments?.includes(street) ? 'Curb-to-curb crossing distance' : 'Recorded roadway width (not curb measured)'}: <strong>${distance ? `${number(distance)} ft` : 'not available'}</strong><br>` +
+    `${state.crossing?.targetSegments?.includes(street) ? 'Recorded crossing width (street-centerline data)' : 'Recorded roadway width'}: <strong>${distance ? `${number(distance)} ft` : 'not available'}</strong><br>` +
     `Estimated clearance: <strong>${crossingClearance(street) ? crossingClearance(street) + ' seconds' : 'not available'}</strong><br>` +
     (timing ? `<strong>Reported signal timing:</strong> ${timing} seconds<br>` : '') +
     '<small>Estimate only; not official signal timing.</small>';
@@ -451,7 +397,7 @@ function selectStreet(street) {
     (context ? `<p class="crossing-context"><strong>Crossing:</strong> ${esc(street.name)}<br><strong>Coming from:</strong> ${esc(context.approach)}</p>` : '') +
     (context ? '' : `<p class="muted">${esc(street.fromStreet || '')} to ${esc(street.toStreet || '')}</p>`) +
     '<div class="stats">' +
-    `<div class="stat"><strong>${distance ? `${number(distance)} ft` : 'Not available'}</strong><span>${context ? 'Curb-to-curb distance' : 'Recorded roadway width, not curb measured'}</span></div>` +
+    `<div class="stat"><strong>${distance ? `${number(distance)} ft` : 'Not available'}</strong><span>${context ? 'Crossing width (centerline data)' : 'Recorded roadway width'}</span></div>` +
     `<div class="stat"><strong>${crossingClearance(street) ? crossingClearance(street) + ' sec' : '—'}</strong><span>Estimated clearance</span></div>` +
     `<div class="stat"><strong>${number(crossingLanes(street))}</strong><span>${context ? 'Total lanes' : 'Number of lanes'}</span></div>` +
     `<div class="stat"><strong>${hasPedestrianCrossing(street) ? 'Yes' : 'No'}</strong><span>Pedestrian crossing</span></div>` +
@@ -491,10 +437,10 @@ function applyFilters() {
   renderProfileOverlay(crossingStreet);
   if (crossingStreet) {
     mapDistance.hidden = false;
-    const curbDistance = curbCrossingDistance(crossingStreet, crossingPoint(crossingStreet));
-    mapDistance.textContent = curbDistance
-      ? `Curb-to-curb crossing distance: ${curbDistance.toLocaleString()} ft`
-      : 'Curb-to-curb distance unavailable: reliable curb edges not found.';
+    const crossingWidth = crossingDistance(crossingStreet);
+    mapDistance.textContent = crossingWidth
+      ? `Recorded crossing width (street-centerline data): ${crossingWidth.toLocaleString()} ft`
+      : 'Recorded roadway width unavailable for this street.';
   }
   else mapDistance.hidden = true;
   $('crossing-status').textContent = focused
@@ -553,7 +499,6 @@ async function init() {
   const response = await fetch('data/streets.json');
   if (!response.ok) throw new Error(`Street data request failed: ${response.status}`);
   state.all = await response.json();
-  fetch('data/curbs.json').then(response => response.ok ? response.json() : []).then(curbs => { state.curbs = curbs; }).catch(() => { state.curbs = []; });
   state.streetNames = [...new Set(state.all.map(street => street.name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   state.streetOptions = state.streetNames.map(name => ({ name, normalized: normalizeStreet(name), family: streetFamily(name) }));
   state.approachOptions = state.streetOptions;
