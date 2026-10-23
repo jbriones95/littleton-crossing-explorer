@@ -1,4 +1,4 @@
-const state = { all: [], curbs: [], streetNames: [], filtered: [], speed: 3.5, direction: 'one-from-two', map: null, layer: null, highlightLayer: null, selected: null, crossing: null, sceneFrame: null, sceneStreet: null, filterTimer: null, boundsCache: new WeakMap() };
+const state = { all: [], curbs: [], streetNames: [], filtered: [], speed: 3.5, direction: 'one-from-two', map: null, layer: null, highlightLayer: null, renderer: null, selected: null, crossing: null, sceneFrame: null, sceneStreet: null, filterTimer: null, boundsCache: new WeakMap(), geometryCache: new WeakMap() };
 const movementProfiles = [
   { name: 'Adult', emoji: '🚶', speed: 3.5 },
   { name: 'Child', emoji: '👦', speed: 3 },
@@ -28,6 +28,11 @@ function esc(value) {
 // The source coordinates are GeoJSON order (longitude, latitude). Leaflet uses latitude, longitude.
 function leafletGeometry(geometry) {
   return (geometry || []).map(line => line.map(([longitude, latitude]) => [latitude, longitude]));
+}
+
+function streetGeometry(street) {
+  if (!state.geometryCache.has(street)) state.geometryCache.set(street, leafletGeometry(street.geometry));
+  return state.geometryCache.get(street);
 }
 
 function normalizeStreet(value) {
@@ -62,19 +67,19 @@ function directionKey(street) {
 }
 
 function center(street) {
-  const points = leafletGeometry(street.geometry).flat();
+  const points = streetGeometry(street).flat();
   return points.reduce((sum, point) => [sum[0] + point[0] / points.length, sum[1] + point[1] / points.length], [0, 0]);
 }
 
 function nearestPoint(street, reference) {
-  return leafletGeometry(street.geometry).flat().reduce((nearest, point) => {
+  return streetGeometry(street).flat().reduce((nearest, point) => {
     const distance = (point[0] - reference[0]) ** 2 + (point[1] - reference[1]) ** 2;
     return distance < nearest.distance ? { point, distance } : nearest;
   }, { point: center(street), distance: Infinity }).point;
 }
 
 function crossingLine(street, point, widthFeet) {
-  const points = leafletGeometry(street.geometry).flat();
+  const points = streetGeometry(street).flat();
   const start = points[0]; const end = points[points.length - 1];
   const latitudeScale = 364000; const longitudeScale = latitudeScale * Math.cos(point[0] * Math.PI / 180);
   const east = (end[1] - start[1]) * longitudeScale; const north = (end[0] - start[0]) * latitudeScale;
@@ -89,7 +94,7 @@ function localVector(a, b, latitude) {
 
 function curbCrossingDistance(street, point) {
   if (!state.curbs.length || !street?.geometry || !point) return null;
-  const streetPoints = leafletGeometry(street.geometry).flat();
+  const streetPoints = streetGeometry(street).flat();
   const streetVector = localVector([streetPoints[0][1], streetPoints[0][0]], [streetPoints[streetPoints.length - 1][1], streetPoints[streetPoints.length - 1][0]], point[0]);
   const streetLength = Math.hypot(...streetVector);
   if (!streetLength) return null;
@@ -144,7 +149,7 @@ function crossingPoint(street) {
 
 function bounds(street) {
   if (state.boundsCache.has(street)) return state.boundsCache.get(street);
-  const points = leafletGeometry(street.geometry).flat();
+  const points = streetGeometry(street).flat();
   const result = points.reduce((box, [lat, lng]) => [Math.min(box[0], lat), Math.min(box[1], lng), Math.max(box[2], lat), Math.max(box[3], lng)], [Infinity, Infinity, -Infinity, -Infinity]);
   state.boundsCache.set(street, result);
   return result;
@@ -215,7 +220,7 @@ function segmentsIntersect(a, b, c, d) {
 }
 
 function streetDistanceFeet(first, second) {
-  const firstPoints = leafletGeometry(first.geometry).flat(); const secondPoints = leafletGeometry(second.geometry).flat();
+  const firstPoints = streetGeometry(first).flat(); const secondPoints = streetGeometry(second).flat();
   const origin = firstPoints[0]; const latitudeScale = 364000; const longitudeScale = latitudeScale * Math.cos(origin[0] * Math.PI / 180);
   const project = point => [(point[1] - origin[1]) * longitudeScale, (point[0] - origin[0]) * latitudeScale];
   const a = firstPoints.map(project); const b = secondPoints.map(project); let minimum = Infinity;
@@ -413,7 +418,7 @@ function selectStreet(street) {
   updateScene(street);
   loadVotes();
   if (state.map && street.geometry && !context) {
-    const bounds = leafletGeometry(street.geometry).flat();
+    const bounds = streetGeometry(street).flat();
     if (bounds.length) state.map.fitBounds(bounds, { padding: [30, 30], maxZoom: 17 });
   }
 }
@@ -455,7 +460,7 @@ function applyFilters() {
   // Keep the overview useful, but remove the visual noise once a crossing is focused.
   if (!focused) state.all.forEach(street => {
     if (!street.geometry) return;
-    L.polyline(leafletGeometry(street.geometry), { color: '#718294', weight: 1.5, opacity: .42 })
+    L.polyline(streetGeometry(street), { color: '#718294', weight: 1.5, opacity: .42, renderer: state.renderer })
       .bindPopup(popup(street)).on('click', () => selectStreet(state.crossing?.street || street)).addTo(state.layer);
   });
   if (state.highlightLayer) state.highlightLayer.clearLayers();
@@ -492,16 +497,10 @@ function applyFilters() {
 }
 
 async function init() {
-  if (window.STREET_DATA) state.all = window.STREET_DATA;
-  else {
-    const response = await fetch('data/streets.json');
-    if (!response.ok) throw new Error(`Street data request failed: ${response.status}`);
-    state.all = await response.json();
-  }
-  try {
-    const curbResponse = await fetch('data/curbs.json');
-    if (curbResponse.ok) state.curbs = await curbResponse.json();
-  } catch { state.curbs = []; }
+  const response = await fetch('data/streets.json');
+  if (!response.ok) throw new Error(`Street data request failed: ${response.status}`);
+  state.all = await response.json();
+  fetch('data/curbs.json').then(response => response.ok ? response.json() : []).then(curbs => { state.curbs = curbs; }).catch(() => { state.curbs = []; });
   [...new Set(state.all.map(street => street.name).filter(Boolean))].sort((a, b) => a.localeCompare(b)).forEach(name => {
     const option = document.createElement('option');
     option.value = name;
@@ -510,7 +509,8 @@ async function init() {
   state.streetNames = [...new Set(state.all.map(street => street.name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   if (window.L) {
     state.map = L.map('map').setView([39.6, -105.02], 12);
-    const streetPoints = state.all.filter(street => street.geometry).flatMap(street => leafletGeometry(street.geometry).flat());
+    state.renderer = L.canvas({ padding: 0.5 });
+    const streetPoints = state.all.filter(street => street.geometry).flatMap(street => streetGeometry(street).flat());
     const dataBounds = L.latLngBounds(streetPoints);
     const areaBounds = L.latLngBounds(
       [dataBounds.getSouth() - 0.004, dataBounds.getWest() - 0.004],
