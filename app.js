@@ -160,7 +160,6 @@ function scheduleFilters() {
   const second = streetFamily($('street-two').value.trim());
   const ready = (!first && !second) || (first && second && state.familySegments.has(first) && state.familySegments.has(second));
   if (!ready) {
-    $('crossing-status').textContent = 'Choose two streets from the suggestions to focus a crossing.';
     if (state.crossing) {
       state.crossing = null;
       state.selected = null;
@@ -405,7 +404,6 @@ function selectStreet(street) {
   const context = state.crossing;
   const distance = crossingDistance(street);
   $('selected').innerHTML = `<h3>${context ? 'Your crossing' : 'Selected street'}: ${esc(displayStreetName(street.name))}</h3>` +
-    (context ? `<p class="crossing-context"><strong>Crossing:</strong> ${esc(displayStreetName(street.name))}<br><strong>Coming from:</strong> ${esc(displayStreetName(context.approach))}</p>` : '') +
     (context ? '' : `<p class="muted">${esc(displayStreetName(street.fromStreet || ''))} to ${esc(displayStreetName(street.toStreet || ''))}</p>`) +
     '<div class="stats">' +
     `<div class="stat"><strong>${distance ? `${number(distance)} ft` : 'Not available'}</strong><span>${context ? 'Crossing width (centerline data)' : 'Recorded roadway width'}</span></div>` +
@@ -454,9 +452,6 @@ function applyFilters() {
       : 'Recorded roadway width unavailable for this street.';
   }
   else mapDistance.hidden = true;
-  $('crossing-status').textContent = focused
-    ? `Crossing ${displayStreetName(crossedStreet)} · approaching from ${displayStreetName(approachStreet)}`
-    : 'Enter two street names to focus a crossing.';
   state.filtered = first || second ? areas : state.all;
   if (state.layer) state.layer.clearLayers();
   if (!window.L) { renderTable(); return; }
