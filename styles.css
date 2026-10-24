@@ -143,3 +143,5 @@ body{font-size:12px}.site-header h1{font-size:24px}.subtitle,.notice p,.section-
 @media(max-width:900px) and (orientation:landscape){
   #map{height:min(68svh,420px);min-height:220px}
 }
+
+.eyebrow,.legend-title{text-transform:none;letter-spacing:normal}

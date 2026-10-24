@@ -25,6 +25,13 @@ function esc(value) {
   }[character]));
 }
 
+function displayStreetName(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/(^|[\s(/-])([a-z])/g, (_, separator, letter) => `${separator}${letter.toUpperCase()}`)
+    .replace(/\((nb|sb|eb|wb|n|s|e|w)\)/gi, (_, direction) => `(${direction.toUpperCase()})`);
+}
+
 // The source coordinates are GeoJSON order (longitude, latitude). Leaflet uses latitude, longitude.
 function leafletGeometry(geometry) {
   return (geometry || []).map(line => line.map(([longitude, latitude]) => [latitude, longitude]));
@@ -131,10 +138,10 @@ function renderSuggestions(inputId, listId, options) {
     if (startsWith.length >= 8) break;
   }
   const matches = startsWith.length >= 8 ? startsWith : startsWith.concat(contains.slice(0, 8 - startsWith.length));
-  list.innerHTML = matches.map(name => `<button type="button" role="option" class="street-suggestion" data-value="${esc(name)}">${esc(name)}</button>`).join('');
+  list.innerHTML = matches.map(name => `<button type="button" role="option" class="street-suggestion" data-value="${esc(name)}">${esc(displayStreetName(name))}</button>`).join('');
   list.classList.toggle('visible', Boolean(term && matches.length));
   list.querySelectorAll('.street-suggestion').forEach(button => button.addEventListener('mousedown', event => {
-    event.preventDefault(); input.value = button.dataset.value; list.classList.remove('visible');
+    event.preventDefault(); input.value = displayStreetName(button.dataset.value); list.classList.remove('visible');
     if (inputId === 'street-one') {
       updateStreetSuggestions(input.value);
       renderSuggestions('street-two', 'street-two-suggestions', state.approachOptions);
@@ -240,6 +247,7 @@ function crossingAreas(first, second) {
 }
 
 function signalTiming(street) {
+  if (!street) return null;
   const endpoints = `${street.name} ${street.fromStreet} ${street.toStreet}`.toUpperCase();
   if (!endpoints.includes('BROADWAY') || !endpoints.includes('LITTLETON BLVD')) return null;
   if (/\bBROADWAY\b/.test(String(street.name || '').toUpperCase())) return 25;
@@ -268,7 +276,7 @@ function renderProfileOverlay(street) {
       const secondsLeft = canCross === true ? available - needed : null;
       const resultClass = canCross === null ? 'unknown' : canCross ? secondsLeft <= 7 ? 'tight-time' : 'can-cross' : 'cannot-cross';
       const timingDetail = canCross === true ? `${needed} sec needed · ${secondsLeft} sec left` : `${needed} sec needed`;
-      return `<div class="profile-result ${resultClass}"><span class="profile-result-icon" aria-hidden="true">${profile.emoji}</span><span class="profile-result-name">${profile.name}<small>${profile.speed.toFixed(1)} ft/sec · ${timingDetail}</small></span><strong>${canCross === null ? '—' : canCross ? 'YES' : 'NO'}</strong></div>`;
+      return `<div class="profile-result ${resultClass}"><span class="profile-result-icon" aria-hidden="true">${profile.emoji}</span><span class="profile-result-name">${profile.name}<small>${profile.speed.toFixed(1)} ft/sec · ${timingDetail}</small></span><strong>${canCross === null ? '—' : canCross ? 'Yes' : 'No'}</strong></div>`;
     }).join('')}</div>`;
 }
 
@@ -340,7 +348,7 @@ async function castVote(vote) {
 function popup(street) {
   const timing = signalTiming(street);
   const distance = crossingDistance(street);
-  return `<strong>${esc(street.name)}</strong><br>${esc(street.roadClass || 'Road class unavailable')}<br>` +
+  return `<strong>${esc(displayStreetName(street.name))}</strong><br>${esc(street.roadClass || 'Road class unavailable')}<br>` +
     `${state.crossing?.targetSegments?.includes(street) ? 'Recorded crossing width (street-centerline data)' : 'Recorded roadway width'}: <strong>${distance ? `${number(distance)} ft` : 'not available'}</strong><br>` +
     `Estimated clearance: <strong>${crossingClearance(street) ? crossingClearance(street) + ' seconds' : 'not available'}</strong><br>` +
     (timing ? `<strong>Reported signal timing:</strong> ${timing} seconds<br>` : '') +
@@ -363,9 +371,9 @@ function updateScene(street) {
   const walkingSeconds = crossingClearance(street);
   const availableSeconds = signalTiming(street) || walkingSeconds;
   if (!distance || !walkingSeconds || !availableSeconds) {
-    person.style.left = '10%'; timer.textContent = '--'; signal.className = 'scene-signal'; signal.innerHTML = '<span aria-hidden="true">—</span> WAIT'; roadLabel.textContent = 'Crossing street'; distanceLabel.textContent = '-- ft'; distanceStat.textContent = '--'; neededStat.textContent = '--'; availableStat.textContent = '--'; summary.className = 'scene-summary'; summary.textContent = 'Enter two streets to start the crossing preview.'; return;
+    person.style.left = '10%'; timer.textContent = '--'; signal.className = 'scene-signal'; signal.innerHTML = '<span aria-hidden="true">—</span> Wait'; roadLabel.textContent = 'Crossing street'; distanceLabel.textContent = '-- ft'; distanceStat.textContent = '--'; neededStat.textContent = '--'; availableStat.textContent = '--'; summary.className = 'scene-summary'; summary.textContent = 'Enter two streets to start the crossing preview.'; return;
   }
-  roadLabel.textContent = street.name;
+  roadLabel.textContent = displayStreetName(street.name);
   distanceLabel.textContent = `${distance.toLocaleString()} ft`;
   const reachesOtherSide = walkingSeconds <= availableSeconds;
   const timingLabel = signalTiming(street) ? `reported ${availableSeconds}-second signal timing` : `${availableSeconds}-second informational estimate`;
@@ -378,17 +386,17 @@ function updateScene(street) {
     const progress = Math.min(elapsed / walkingSeconds, 1);
     person.style.left = `${10 + progress * 80}%`;
     timer.textContent = `${Math.max(0, Math.ceil(availableSeconds - elapsed))} sec`;
-    if (elapsed >= walkingSeconds) { signal.className = 'scene-signal signal-hand'; signal.innerHTML = '<span aria-hidden="true">✋</span> DON’T WALK'; }
+    if (elapsed >= walkingSeconds) { signal.className = 'scene-signal signal-hand'; signal.innerHTML = '<span aria-hidden="true">✋</span> Don’t walk'; }
     if (elapsed < availableSeconds) state.sceneFrame = requestAnimationFrame(animate);
     else { timer.textContent = reachesOtherSide ? 'Complete' : 'Time'; person.classList.toggle('scene-incomplete', !reachesOtherSide); }
   };
   person.classList.remove('scene-incomplete');
-  signal.className = 'scene-signal signal-walk'; signal.innerHTML = '<span aria-hidden="true">🚶</span> WALK';
+  signal.className = 'scene-signal signal-walk'; signal.innerHTML = '<span aria-hidden="true">🚶</span> Walk';
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     person.style.left = `${10 + Math.min(walkingSeconds / availableSeconds, 1) * 80}%`;
     timer.textContent = reachesOtherSide ? 'Complete' : 'Time';
     person.classList.toggle('scene-incomplete', !reachesOtherSide);
-    signal.className = 'scene-signal signal-hand'; signal.innerHTML = '<span aria-hidden="true">✋</span> DON’T WALK';
+    signal.className = 'scene-signal signal-hand'; signal.innerHTML = '<span aria-hidden="true">✋</span> Don’t walk';
   } else state.sceneFrame = requestAnimationFrame(animate);
 }
 
@@ -396,9 +404,9 @@ function selectStreet(street) {
   state.selected = street;
   const context = state.crossing;
   const distance = crossingDistance(street);
-  $('selected').innerHTML = `<h3>${context ? 'Your crossing' : 'Selected street'}: ${esc(street.name)}</h3>` +
-    (context ? `<p class="crossing-context"><strong>Crossing:</strong> ${esc(street.name)}<br><strong>Coming from:</strong> ${esc(context.approach)}</p>` : '') +
-    (context ? '' : `<p class="muted">${esc(street.fromStreet || '')} to ${esc(street.toStreet || '')}</p>`) +
+  $('selected').innerHTML = `<h3>${context ? 'Your crossing' : 'Selected street'}: ${esc(displayStreetName(street.name))}</h3>` +
+    (context ? `<p class="crossing-context"><strong>Crossing:</strong> ${esc(displayStreetName(street.name))}<br><strong>Coming from:</strong> ${esc(displayStreetName(context.approach))}</p>` : '') +
+    (context ? '' : `<p class="muted">${esc(displayStreetName(street.fromStreet || ''))} to ${esc(displayStreetName(street.toStreet || ''))}</p>`) +
     '<div class="stats">' +
     `<div class="stat"><strong>${distance ? `${number(distance)} ft` : 'Not available'}</strong><span>${context ? 'Crossing width (centerline data)' : 'Recorded roadway width'}</span></div>` +
     `<div class="stat"><strong>${crossingClearance(street) ? crossingClearance(street) + ' sec' : '—'}</strong><span>Estimated clearance</span></div>` +
@@ -415,7 +423,7 @@ function selectStreet(street) {
 
 function renderTable() {
   const rows = state.filtered.slice(0, 500);
-  $('street-table').innerHTML = rows.map((street, index) => `<tr><td><button class="row-button" data-index="${index}">${esc(street.name)}</button><br><small>${esc(street.SEGMENTID || '')}</small></td><td>${esc(street.roadClass || '—')}</td><td>${number(street.widthFt, '—')} ft</td><td>${number(street.lanes)}</td><td>${clearance(street) ? clearance(street) + ' sec' : '—'}</td><td>${hasPedestrianCrossing(street) ? 'Yes' : 'No'}</td></tr>`).join('');
+  $('street-table').innerHTML = rows.map((street, index) => `<tr><td><button class="row-button" data-index="${index}">${esc(displayStreetName(street.name))}</button><br><small>Segment ID: ${esc(street.SEGMENTID || '')}</small></td><td>${esc(street.roadClass || 'Road class unavailable')}</td><td>${number(street.widthFt, '—')} ft</td><td>${number(street.lanes)}</td><td>${clearance(street) ? clearance(street) + ' sec' : '—'}</td><td>${hasPedestrianCrossing(street) ? 'Yes' : 'No'}</td></tr>`).join('');
   const hasInput = $('street-one').value.trim() || $('street-two').value.trim();
   $('result-count').textContent = !state.filtered.length && hasInput
     ? 'No matching crossing found. Choose a street from the suggestions and try again.'
@@ -447,7 +455,7 @@ function applyFilters() {
   }
   else mapDistance.hidden = true;
   $('crossing-status').textContent = focused
-    ? `Crossing ${crossedStreet} · approaching from ${approachStreet}`
+    ? `Crossing ${displayStreetName(crossedStreet)} · approaching from ${displayStreetName(approachStreet)}`
     : 'Enter two street names to focus a crossing.';
   state.filtered = first || second ? areas : state.all;
   if (state.layer) state.layer.clearLayers();
@@ -556,6 +564,10 @@ async function init() {
   document.querySelectorAll('#street-one,#street-two').forEach(input => input.addEventListener('focus', () => {
     if (input.id === 'street-one') renderSuggestions('street-one', 'street-one-suggestions', state.streetOptions);
     else renderSuggestions('street-two', 'street-two-suggestions', state.approachOptions);
+  }));
+  document.querySelectorAll('#street-one,#street-two').forEach(input => input.addEventListener('blur', () => {
+    const match = state.streetNames.find(name => normalizeStreet(name) === normalizeStreet(input.value));
+    if (match) input.value = displayStreetName(match);
   }));
   document.addEventListener('click', event => { if (!event.target.closest('.street-suggestions') && !event.target.matches('#street-one,#street-two')) hideSuggestions(); });
   $('reset-crossing').addEventListener('click', () => {
