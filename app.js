@@ -439,7 +439,7 @@ function selectStreet(street) {
     `<div class="stat"><strong>${crossingClearance(street) ? crossingClearance(street) + ' sec' : '—'}</strong><span>Estimated clearance</span></div>` +
     `<div class="stat"><strong>${number(crossingLanes(street))}</strong><span>${context ? 'Total lanes' : 'Number of lanes'}</span></div>` +
     `<div class="stat"><strong>${hasPedestrianCrossing(street) ? 'Yes' : 'No'}</strong><span>Pedestrian crossing</span></div>` +
-      `</div><p class="crossing-meta">${signalTiming(street) ? `<strong>Reported signal timing:</strong> ${signalTiming(street)} seconds | ` : ''}<strong>Speed limit:</strong> ${esc(street.speed || 'Not available')} | <strong>Average daily traffic:</strong> ${number(street.adt, 'Not available')} ADT</p>`;
+      `</div><p class="crossing-meta">${signalTiming(street) ? `<strong>Reported signal timing:</strong> ${signalTiming(street)} seconds | ` : ''}<strong>Speed limit:</strong> ${esc(street.speed || 'Not available')} | <strong>Average daily traffic:</strong> ${number(street.adt, 'Not available')}</p>`;
   updateScene(street);
   loadVotes();
   if (state.map && street.geometry && !context) {
