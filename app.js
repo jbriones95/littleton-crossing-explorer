@@ -390,42 +390,8 @@ function popup(street) {
 function updateScene(street) {
   state.sceneStreet = street || null;
   if (state.sceneFrame) cancelAnimationFrame(state.sceneFrame);
-  const person = $('scene-person');
-  const timer = $('scene-timer');
-  const roadLabel = $('scene-road-label');
-  const distanceLabel = $('scene-distance');
-  const signal = $('scene-signal');
-  const distanceStat = $('scene-distance-stat'); const neededStat = $('scene-needed-stat'); const availableStat = $('scene-available-stat');
-  $('scene-restart').disabled = !street;
-  const distance = crossingDistance(street);
-  document.querySelector('.scene-section').hidden = !(state.crossing && distance);
-  const walkingSeconds = crossingClearance(street);
-  const availableSeconds = signalTiming(street) || walkingSeconds;
-  if (!distance || !walkingSeconds || !availableSeconds) {
-    person.style.left = '10%'; timer.textContent = '--'; signal.className = 'scene-signal'; signal.innerHTML = '<span aria-hidden="true">—</span> Wait'; roadLabel.textContent = 'Crossing street'; distanceLabel.textContent = '-- ft'; distanceStat.textContent = '--'; neededStat.textContent = '--'; availableStat.textContent = '--'; return;
-  }
-  roadLabel.textContent = displayStreetName(street.name);
-  distanceLabel.textContent = `${distance.toLocaleString()} ft`;
-  const reachesOtherSide = walkingSeconds <= availableSeconds;
-  distanceStat.textContent = `${distance.toLocaleString()} ft`; neededStat.textContent = `${walkingSeconds} sec`; availableStat.textContent = `${availableSeconds} sec`;
-  const start = performance.now();
-  const animate = now => {
-    const elapsed = (now - start) / 1000;
-    const progress = Math.min(elapsed / walkingSeconds, 1);
-    person.style.left = `${10 + progress * 80}%`;
-    timer.textContent = `${Math.max(0, Math.ceil(availableSeconds - elapsed))} sec`;
-    if (elapsed >= walkingSeconds) { signal.className = 'scene-signal signal-hand'; signal.innerHTML = '<span aria-hidden="true">✋</span> Don’t walk'; }
-    if (elapsed < availableSeconds) state.sceneFrame = requestAnimationFrame(animate);
-    else { timer.textContent = reachesOtherSide ? 'Complete' : 'Time'; person.classList.toggle('scene-incomplete', !reachesOtherSide); }
-  };
-  person.classList.remove('scene-incomplete');
-  signal.className = 'scene-signal signal-walk'; signal.innerHTML = '<span aria-hidden="true">🚶</span> Walk';
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    person.style.left = `${10 + Math.min(walkingSeconds / availableSeconds, 1) * 80}%`;
-    timer.textContent = reachesOtherSide ? 'Complete' : 'Time';
-    person.classList.toggle('scene-incomplete', !reachesOtherSide);
-    signal.className = 'scene-signal signal-hand'; signal.innerHTML = '<span aria-hidden="true">✋</span> Don’t walk';
-  } else state.sceneFrame = requestAnimationFrame(animate);
+  state.sceneFrame = null;
+  document.querySelector('.scene-section').hidden = true;
 }
 
 function selectStreet(street) {
