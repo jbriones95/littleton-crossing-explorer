@@ -266,10 +266,10 @@ function renderProfileOverlay(street) {
   const available = signalTiming(street);
   overlay.hidden = false;
   if (!distance) {
-    overlay.innerHTML = '<div class="profile-overlay-title">Can everyone cross?</div><div class="profile-overlay-subtitle">Recorded roadway width is unavailable for this street.</div>';
+    overlay.innerHTML = '<div class="profile-overlay-title">Can everyone cross?</div><div class="profile-overlay-subtitle">Crosswalk timing unavailable</div>';
     return;
   }
-  overlay.innerHTML = `<div class="profile-overlay-title">Can everyone cross?</div><div class="profile-overlay-subtitle">${distance.toLocaleString()} ft recorded roadway width${available ? ` · ${available}-second reported timing` : ' · no reported timing available'}</div>` +
+  overlay.innerHTML = `<div class="profile-overlay-title">Can everyone cross?</div><div class="profile-overlay-subtitle">${available ? `Crosswalk timing: ${available} seconds` : 'Crosswalk timing unavailable'}</div>` +
     `<div class="profile-results">${movementProfiles.map(profile => {
       const needed = Math.ceil(distance / profile.speed);
       const canCross = available ? needed <= available : null;
