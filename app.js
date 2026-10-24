@@ -241,7 +241,10 @@ function crossingAreas(first, second) {
 
 function signalTiming(street) {
   const endpoints = `${street.name} ${street.fromStreet} ${street.toStreet}`.toUpperCase();
-  return endpoints.includes('BROADWAY') && endpoints.includes('LITTLETON BLVD') ? 30 : null;
+  if (!endpoints.includes('BROADWAY') || !endpoints.includes('LITTLETON BLVD')) return null;
+  if (/\bBROADWAY\b/.test(String(street.name || '').toUpperCase())) return 25;
+  if (/\bLITTLETON BLVD\b/.test(String(street.name || '').toUpperCase())) return 30;
+  return null;
 }
 
 function hasPedestrianCrossing(street) {
