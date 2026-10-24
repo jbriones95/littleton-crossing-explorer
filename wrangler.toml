@@ -6,5 +6,5 @@ workers_dev = true
 [[d1_databases]]
 binding = "DB"
 database_name = "littleton-crossing-votes"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "f36c9d34-3e0c-4325-a7f1-09e44b65c19a"
 migrations_dir = "migrations"
