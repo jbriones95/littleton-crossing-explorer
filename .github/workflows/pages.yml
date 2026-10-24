@@ -20,6 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Prepare site artifact
+        env:
+          VOTE_API_URL: ${{ vars.VOTE_API_URL }}
         run: |
           mkdir -p _site/data _site/n712kv0.6.0
           cp index.html app.js styles.css favicon.svg CNAME _site/
@@ -28,7 +30,24 @@ jobs:
           sed -i "s|href=\"styles.css\"|href=\"styles.css?v=${GITHUB_SHA}\"|" _site/index.html
           sed -i "s|href=\"favicon.svg\"|href=\"favicon.svg?v=${GITHUB_SHA}\"|" _site/index.html
           sed -i "s|src=\"app.js\"|src=\"app.js?v=${GITHUB_SHA}\"|" _site/index.html
-          sed -i 's|<html lang="en">|<html lang="en" data-voting="disabled">|' _site/index.html
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = '_site/index.html';
+          const configuredUrl = (process.env.VOTE_API_URL || '').trim();
+          let apiUrl = '';
+          if (configuredUrl) {
+            const parsed = new URL(configuredUrl);
+            if (parsed.protocol !== 'https:' || parsed.pathname !== '/' || parsed.search || parsed.hash || parsed.username || parsed.password) {
+              throw new Error('VOTE_API_URL must be an HTTPS origin without a path, query, or credentials.');
+            }
+            apiUrl = parsed.origin;
+          }
+          const voting = apiUrl ? 'enabled' : 'disabled';
+          const apiAttribute = apiUrl ? ` data-votes-api="${apiUrl}"` : '';
+          let html = fs.readFileSync(path, 'utf8');
+          html = html.replace('<html lang="en">', `<html lang="en" data-voting="${voting}"${apiAttribute}>`);
+          fs.writeFileSync(path, html);
+          NODE
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:

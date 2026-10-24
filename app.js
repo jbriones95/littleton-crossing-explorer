@@ -1,4 +1,5 @@
 const state = { all: [], streetNames: [], streetOptions: [], approachOptions: [], familyNames: new Map(), familySegments: new Map(), connectedFamilies: new Map(), filtered: [], speed: 3.5, direction: 'one-from-two', map: null, layer: null, highlightLayer: null, renderer: null, selected: null, crossing: null, sceneFrame: null, sceneStreet: null, filterTimer: null, boundsCache: new WeakMap(), geometryCache: new WeakMap() };
+const voteApiBase = document.documentElement.dataset.votesApi || '';
 const movementProfiles = [
   { name: 'Adult', emoji: '🚶', speed: 3.5 },
   { name: 'Child', emoji: '👦', speed: 3 },
@@ -355,7 +356,7 @@ async function loadVotes() {
   document.querySelectorAll('.vote-actions button').forEach(button => { button.disabled = false; });
   $('vote-message').textContent = 'Loading community responses…';
   try {
-    const response = await fetch(`/api/votes?key=${encodeURIComponent(key)}&browserId=${encodeURIComponent(browserId())}`);
+    const response = await fetch(`${voteApiBase}/api/votes?key=${encodeURIComponent(key)}&browserId=${encodeURIComponent(browserId())}`);
     if (!response.ok) throw new Error('Vote service unavailable');
     const data = await response.json();
     if (state.voteKey !== key) return;
@@ -371,7 +372,7 @@ async function castVote(vote) {
   if (!key) return;
   $('vote-message').textContent = 'Saving your vote…';
   try {
-    const response = await fetch('/api/votes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, vote, browserId: browserId() }) });
+    const response = await fetch(`${voteApiBase}/api/votes`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, vote, browserId: browserId() }) });
     if (!response.ok) throw new Error('Vote service unavailable');
     await loadVotes();
   } catch { $('vote-message').textContent = 'Your vote could not be saved.'; }
