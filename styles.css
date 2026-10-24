@@ -75,3 +75,71 @@ body{font-size:12px}.site-header h1{font-size:24px}.subtitle,.notice p,.section-
     .map-legend .legend-title,.map-legend .crossing-status{grid-column:1/-1}
     .crossing-status{width:100%;margin-top:.1rem}
   }
+
+/* Responsive sizing across desktop, tablet, and phone viewports. */
+.wrap{width:min(100%,1360px);padding-inline:clamp(.75rem,2.5vw,2rem)}
+.site-header{padding-block:clamp(1.5rem,5vh,3.25rem)}
+#map{height:clamp(400px,62vh,600px)}
+.journey-inputs>*{min-width:0}
+.journey-inputs input{min-width:0}
+.profile-grid{grid-template-columns:repeat(7,minmax(0,1fr));overflow:visible}
+.profile{min-width:0}
+.map-card{min-width:0}
+
+@media(max-width:1000px){
+  .wrap{padding-inline:1rem}
+  #map{height:clamp(360px,56vh,500px)}
+  .journey-inputs{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.65rem}
+  .journey-intro{grid-column:1;grid-row:1}
+  .journey-connector{grid-column:2;grid-row:1;justify-self:end}
+  .journey-inputs label:nth-of-type(1){grid-column:1;grid-row:2}
+  .journey-inputs label:nth-of-type(2){grid-column:2;grid-row:2}
+  .journey-inputs #swap-crossing{grid-column:1;grid-row:3}
+  .journey-inputs #reset-crossing{grid-column:2;grid-row:3}
+  .journey-inputs .secondary-button{width:100%;min-height:2.75rem}
+  .profile-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+@media(max-width:600px){
+  .wrap{padding-inline:.75rem}
+  .site-header{padding-block:1.35rem 1.6rem}
+  .site-header h1{font-size:clamp(1.2rem,5vw,1.55rem)}
+  .subtitle{max-width:34ch;font-size:clamp(.8rem,3.5vw,1rem)}
+  .notice,.controls,.details,.scene-section,.street-data,.method{margin-block:.85rem;padding:.75rem}
+  .journey-inputs{grid-template-columns:minmax(0,1fr);gap:.45rem}
+  .journey-intro,.journey-connector,.journey-inputs label:nth-of-type(1),.journey-inputs label:nth-of-type(2),.journey-inputs #swap-crossing,.journey-inputs #reset-crossing{grid-column:1;grid-row:auto;justify-self:stretch}
+  .journey-connector{justify-self:start}
+  #map{height:clamp(280px,52svh,420px);min-height:280px}
+  .map-legend{grid-template-columns:minmax(0,1fr) minmax(0,1fr);font-size:clamp(9px,2.6vw,11px)}
+  .map-legend>span:not(.legend-title):not(.crossing-status){min-width:0;line-height:1.4}
+  .map-legend .legend-title,.map-legend .crossing-status{grid-column:1/-1}
+  .leaflet-control-zoom a{width:2.75rem!important;height:2.75rem!important;line-height:2.75rem!important;font-size:1rem!important}
+  .leaflet-control-attribution{font-size:9px;max-width:70%;white-space:normal}
+  .profile-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.4rem}
+  .profile{min-height:4.6rem;padding:.35rem .25rem}
+  .profile-overlay{font-size:11px}
+  .profile-result{grid-template-columns:2rem minmax(0,1fr) auto;gap:.35rem}
+  .profile-result-name,.profile-result-name small{overflow-wrap:anywhere}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:.4rem}
+  .stat{min-width:0;overflow-wrap:anywhere}
+  .scene-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .scene-stats>div{min-width:0;padding:.4rem}
+  .scene-stats strong{font-size:clamp(.8rem,4vw,1rem)}
+  .table-wrap{max-width:100%;overflow:auto}
+}
+
+@media(max-width:380px){
+  .wrap{padding-inline:.6rem}
+  .map-legend{grid-template-columns:minmax(0,1fr)}
+  .map-legend .legend-title,.map-legend .crossing-status{grid-column:1}
+  .map-legend>span:not(.legend-title):not(.crossing-status){grid-column:1}
+  .scene-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .scene-stats>div:last-child{grid-column:1/-1}
+  .profile-result-name{font-size:.85rem}
+  .profile-result-name small{font-size:.68rem}
+}
+
+@media(max-width:900px) and (orientation:landscape){
+  #map{height:min(68svh,420px);min-height:220px}
+}
