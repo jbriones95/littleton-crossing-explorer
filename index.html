@@ -29,12 +29,12 @@
         <div class="journey-inputs">
           <span class="journey-intro">I want to cross</span>
           <label>
-            <input id="street-one" type="search" placeholder="Choose a street" autocomplete="off">
+            <input id="street-one" type="search" placeholder="Choose a street" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="street-one-suggestions" aria-expanded="false">
             <div id="street-one-suggestions" class="street-suggestions" role="listbox" aria-label="Crossing street suggestions"></div>
           </label>
           <span class="journey-connector">coming from</span>
           <label>
-            <input id="street-two" type="search" placeholder="Choose a street" autocomplete="off">
+            <input id="street-two" type="search" placeholder="Choose a street" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="street-two-suggestions" aria-expanded="false">
             <div id="street-two-suggestions" class="street-suggestions" role="listbox" aria-label="Approach street suggestions"></div>
           </label>
           <button id="swap-crossing" class="secondary-button" type="button" title="Swap the street you cross and the street you start from">⇄ Swap direction</button>
@@ -92,7 +92,6 @@
         <div><span>Time needed</span><strong id="scene-needed-stat">--</strong></div>
         <div><span>Time available</span><strong id="scene-available-stat">--</strong></div>
       </div>
-      <p id="scene-summary" class="scene-summary" aria-live="polite">Enter two streets to start the crossing preview.</p>
       <button id="scene-restart" class="secondary-button scene-restart" type="button" disabled>↻ Restart crossing</button>
     </section>
 

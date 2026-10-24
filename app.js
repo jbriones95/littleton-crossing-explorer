@@ -130,7 +130,7 @@ function updateStreetSuggestions(first) {
 
 function renderSuggestions(inputId, listId, options) {
   const input = $(inputId); const list = $(listId); const term = normalizeStreet(input.value);
-  if (!term) { list.replaceChildren(); list.classList.remove('visible'); return; }
+  if (!term) { list.replaceChildren(); list.classList.remove('visible'); input.setAttribute('aria-expanded', 'false'); input.removeAttribute('aria-activedescendant'); return; }
   const startsWith = []; const contains = [];
   for (const option of options) {
     if (option.normalized.startsWith(term)) startsWith.push(option.name);
@@ -138,20 +138,53 @@ function renderSuggestions(inputId, listId, options) {
     if (startsWith.length >= 8) break;
   }
   const matches = startsWith.length >= 8 ? startsWith : startsWith.concat(contains.slice(0, 8 - startsWith.length));
-  list.innerHTML = matches.map(name => `<button type="button" role="option" class="street-suggestion" data-value="${esc(name)}">${esc(displayStreetName(name))}</button>`).join('');
+  list.innerHTML = matches.map((name, index) => `<button id="${inputId}-option-${index}" type="button" role="option" aria-selected="false" class="street-suggestion" data-value="${esc(name)}">${esc(displayStreetName(name))}</button>`).join('');
+  list.dataset.activeIndex = '-1';
   list.classList.toggle('visible', Boolean(term && matches.length));
+  input.setAttribute('aria-expanded', String(Boolean(term && matches.length)));
+  input.removeAttribute('aria-activedescendant');
   list.querySelectorAll('.street-suggestion').forEach(button => button.addEventListener('mousedown', event => {
-    event.preventDefault(); input.value = displayStreetName(button.dataset.value); list.classList.remove('visible');
-    if (inputId === 'street-one') {
-      updateStreetSuggestions(input.value);
-      renderSuggestions('street-two', 'street-two-suggestions', state.approachOptions);
-    }
-    scheduleFilters();
+    event.preventDefault(); chooseStreetSuggestion(inputId, listId, button);
   }));
 }
 
+function moveSuggestion(inputId, delta) {
+  const input = $(inputId); const list = $(`${inputId}-suggestions`);
+  const options = [...list.querySelectorAll('.street-suggestion')];
+  if (!list.classList.contains('visible') || !options.length) return false;
+  const current = Number(list.dataset.activeIndex ?? -1);
+  const next = current < 0 ? (delta > 0 ? 0 : options.length - 1) : (current + delta + options.length) % options.length;
+  options.forEach((option, index) => {
+    const active = index === next;
+    option.classList.toggle('active', active);
+    option.setAttribute('aria-selected', String(active));
+  });
+  list.dataset.activeIndex = String(next);
+  input.setAttribute('aria-activedescendant', options[next].id);
+  options[next].scrollIntoView({ block: 'nearest' });
+  return true;
+}
+
+function chooseStreetSuggestion(inputId, listId, button) {
+  const input = $(inputId); const list = $(listId);
+  input.value = displayStreetName(button.dataset.value);
+  list.classList.remove('visible');
+  input.setAttribute('aria-expanded', 'false');
+  input.removeAttribute('aria-activedescendant');
+  if (inputId === 'street-one') {
+    updateStreetSuggestions(input.value);
+    renderSuggestions('street-two', 'street-two-suggestions', state.approachOptions);
+  }
+  scheduleFilters();
+}
+
 function hideSuggestions() {
-  document.querySelectorAll('.street-suggestions').forEach(list => list.classList.remove('visible'));
+  document.querySelectorAll('.street-suggestions').forEach(list => {
+    list.classList.remove('visible');
+    const input = $(`${list.id.replace('-suggestions', '')}`);
+    input?.setAttribute('aria-expanded', 'false');
+    input?.removeAttribute('aria-activedescendant');
+  });
 }
 
 function scheduleFilters() {
@@ -359,7 +392,6 @@ function updateScene(street) {
   if (state.sceneFrame) cancelAnimationFrame(state.sceneFrame);
   const person = $('scene-person');
   const timer = $('scene-timer');
-  const summary = $('scene-summary');
   const roadLabel = $('scene-road-label');
   const distanceLabel = $('scene-distance');
   const signal = $('scene-signal');
@@ -370,15 +402,12 @@ function updateScene(street) {
   const walkingSeconds = crossingClearance(street);
   const availableSeconds = signalTiming(street) || walkingSeconds;
   if (!distance || !walkingSeconds || !availableSeconds) {
-    person.style.left = '10%'; timer.textContent = '--'; signal.className = 'scene-signal'; signal.innerHTML = '<span aria-hidden="true">—</span> Wait'; roadLabel.textContent = 'Crossing street'; distanceLabel.textContent = '-- ft'; distanceStat.textContent = '--'; neededStat.textContent = '--'; availableStat.textContent = '--'; summary.className = 'scene-summary'; summary.textContent = 'Enter two streets to start the crossing preview.'; return;
+    person.style.left = '10%'; timer.textContent = '--'; signal.className = 'scene-signal'; signal.innerHTML = '<span aria-hidden="true">—</span> Wait'; roadLabel.textContent = 'Crossing street'; distanceLabel.textContent = '-- ft'; distanceStat.textContent = '--'; neededStat.textContent = '--'; availableStat.textContent = '--'; return;
   }
   roadLabel.textContent = displayStreetName(street.name);
   distanceLabel.textContent = `${distance.toLocaleString()} ft`;
   const reachesOtherSide = walkingSeconds <= availableSeconds;
-  const timingLabel = signalTiming(street) ? `reported ${availableSeconds}-second signal timing` : `${availableSeconds}-second informational estimate`;
   distanceStat.textContent = `${distance.toLocaleString()} ft`; neededStat.textContent = `${walkingSeconds} sec`; availableStat.textContent = `${availableSeconds} sec`;
-  summary.className = `scene-summary ${reachesOtherSide ? 'scene-success' : 'scene-warning'}`;
-  summary.textContent = `${distance.toLocaleString()} ft crossing at ${state.speed.toFixed(1)} ft/sec: ${walkingSeconds} seconds needed, with ${timingLabel}. ${reachesOtherSide ? 'The profile reaches the other side.' : 'The available time expires before the crossing is complete.'}`;
   const start = performance.now();
   const animate = now => {
     const elapsed = (now - start) / 1000;
@@ -410,7 +439,7 @@ function selectStreet(street) {
     `<div class="stat"><strong>${crossingClearance(street) ? crossingClearance(street) + ' sec' : '—'}</strong><span>Estimated clearance</span></div>` +
     `<div class="stat"><strong>${number(crossingLanes(street))}</strong><span>${context ? 'Total lanes' : 'Number of lanes'}</span></div>` +
     `<div class="stat"><strong>${hasPedestrianCrossing(street) ? 'Yes' : 'No'}</strong><span>Pedestrian crossing</span></div>` +
-      `</div><p class="crossing-meta">${signalTiming(street) ? `<strong>Reported signal timing:</strong> ${signalTiming(street)} seconds | ` : ''}<strong>Speed limit:</strong> ${esc(street.speed || 'Not available')} | <strong>Traffic:</strong> ${number(street.adt, 'Not available')} ADT</p>`;
+      `</div><p class="crossing-meta">${signalTiming(street) ? `<strong>Reported signal timing:</strong> ${signalTiming(street)} seconds | ` : ''}<strong>Speed limit:</strong> ${esc(street.speed || 'Not available')} | <strong>Average daily traffic:</strong> ${number(street.adt, 'Not available')} ADT</p>`;
   updateScene(street);
   loadVotes();
   if (state.map && street.geometry && !context) {
@@ -556,6 +585,21 @@ async function init() {
     scheduleFilters();
   });
   $('street-two').addEventListener('input', () => { renderSuggestions('street-two', 'street-two-suggestions', state.approachOptions); scheduleFilters(); });
+  document.querySelectorAll('#street-one,#street-two').forEach(input => input.addEventListener('keydown', event => {
+    const list = $(`${input.id}-suggestions`);
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (moveSuggestion(input.id, event.key === 'ArrowDown' ? 1 : -1)) event.preventDefault();
+    } else if (event.key === 'Enter' && list.classList.contains('visible')) {
+      const options = [...list.querySelectorAll('.street-suggestion')];
+      const active = Number(list.dataset.activeIndex ?? -1);
+      if (options.length && (active >= 0 || options.length === 1)) {
+        event.preventDefault();
+        chooseStreetSuggestion(input.id, list.id, options[active >= 0 ? active : 0]);
+      }
+    } else if (event.key === 'Escape' && list.classList.contains('visible')) {
+      event.preventDefault(); hideSuggestions();
+    }
+  }));
   document.querySelectorAll('#street-one,#street-two').forEach(input => input.addEventListener('focus', () => {
     if (input.id === 'street-one') renderSuggestions('street-one', 'street-one-suggestions', state.streetOptions);
     else renderSuggestions('street-two', 'street-two-suggestions', state.approachOptions);
@@ -563,6 +607,9 @@ async function init() {
   document.querySelectorAll('#street-one,#street-two').forEach(input => input.addEventListener('blur', () => {
     const match = state.streetNames.find(name => normalizeStreet(name) === normalizeStreet(input.value));
     if (match) input.value = displayStreetName(match);
+    $(`${input.id}-suggestions`).classList.remove('visible');
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
   }));
   document.addEventListener('click', event => { if (!event.target.closest('.street-suggestions') && !event.target.matches('#street-one,#street-two')) hideSuggestions(); });
   $('reset-crossing').addEventListener('click', () => {
