@@ -1,41 +1,19 @@
-# Littleton Pedestrian Crossing Explorer
+# Littleton Crossing Explorer
 
-Accessible static website built from the supplied Littleton street-centerline data and CDOT pedestrian-signal timing guidance.
+An accessible map for exploring Littleton streets and estimated pedestrian crossing times.
 
 ## Run locally
 
-From this folder, run:
-
-```text
+```sh
 npm start
 ```
 
-Then open <http://localhost:8000>.
+Open <http://localhost:8000>. Run `npm test` to check the voting API.
 
-## Publish on GitHub Pages
+## Deploy
 
-The `Deploy static site to GitHub Pages` workflow publishes the explorer when changes are pushed to `master` (or when run manually). In the repository settings, set **Pages → Build and deployment → Source** to **GitHub Actions**. The interactive map and street explorer are static. Community voting uses the Cloudflare Worker in `worker.mjs` and D1 database; without the repository Actions variable `VOTE_API_URL`, Pages intentionally leaves voting disabled.
+Push to `master` to publish the site to [littletoncrosswalks.com](https://littletoncrosswalks.com/) with GitHub Pages. The voting API uses a Cloudflare Worker and D1 database; deploy Worker changes with `npx wrangler deploy`. Its URL is a GitHub Actions variable, and its hashing salt is a Cloudflare secret.
 
-### Enable community voting
+## How estimates work
 
-1. Create or sign in to a Cloudflare account and install/authenticate Wrangler: `npx wrangler login`.
-2. Create the persistent database with `npx wrangler d1 create littleton-crossing-votes`. Copy the database ID Wrangler returns into `wrangler.toml`, replacing the all-zero placeholder.
-3. Apply the schema: `npx wrangler d1 migrations apply littleton-crossing-votes --remote`.
-4. Set a private hashing salt and deploy the API:
-
-   ```sh
-   openssl rand -hex 32 | npx wrangler secret put VOTE_HASH_SALT
-   npx wrangler deploy
-   ```
-
-5. Copy the deployed `workers.dev` origin and set it as a repository Actions variable:
-   `gh variable set VOTE_API_URL --repo jbriones95/littleton-crossing-explorer --body 'https://YOUR-WORKER.YOUR-ACCOUNT.workers.dev'`
-6. Redeploy the Pages site by pushing a commit or running the Pages workflow manually.
-
-The API accepts requests only from the production site (plus localhost for development). It stores one vote per crossing and salted voter hash; raw IP addresses and browser IDs are not stored. Voters can update their vote. The Worker code and D1 schema can be tested locally with `npm test`.
-
-The site uses Leaflet and Esri's World Street Map tiles with linked attribution. For a high-traffic deployment, use a dedicated tile provider or host your own tiles. `data/streets.json` is a web-ready conversion of the supplied GeoPackage, transformed from EPSG:2232 to WGS84 coordinates. `data/curbs.json` is retained as a compact EPSG:4326 conversion of the supplied curb GeoJSON but is not currently used for crossing distances. The Pages workflow includes only the runtime site assets, not the source GIS exports.
-
-## Important limitation
-
-Crossing-focused clearance estimates use the sum of the selected street-centerline segments' recorded roadway widths (`widthFt`), not curb-to-curb measurements. Outside a selected crossing, displayed roadway widths are the supplied recorded widths. The pedestrian-crossing Yes/No indicator is limited to crossings identified by the app's known signal-timing data; it is not a complete crosswalk inventory. The site does not contain or represent official Littleton signal timing plans.
+Crossing estimates use recorded street-centerline widths, not curb-to-curb distances. Walking time is estimated from width and walking speed. Signal timing is shown only for crossings with known timing data; it is informational and does not represent an official signal plan.
