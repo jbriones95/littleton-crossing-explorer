@@ -4,7 +4,7 @@ const movementProfiles = [
   { name: 'Child', emoji: '👦', speed: 3 },
   { name: 'Older adult', emoji: '👴', speed: 2.5 },
   { name: 'Crowd', emoji: '🧑‍🤝‍🧑', speed: 3 },
-  { name: 'Person with a dog', emoji: '🧍‍♂️🐕', speed: 3 },
+  { name: 'Person with a dog', emoji: '🐕', speed: 3 },
   { name: 'Bike', emoji: '🚴', speed: 8 },
   { name: 'Wheelchair', emoji: '🧑‍🦽', speed: 2.5 }
 ];
@@ -241,7 +241,7 @@ function crossingAreas(first, second) {
 
 function signalTiming(street) {
   const endpoints = `${street.name} ${street.fromStreet} ${street.toStreet}`.toUpperCase();
-  return endpoints.includes('BROADWAY') && endpoints.includes('LITTLETON BLVD') ? 25 : null;
+  return endpoints.includes('BROADWAY') && endpoints.includes('LITTLETON BLVD') ? 30 : null;
 }
 
 function hasPedestrianCrossing(street) {
