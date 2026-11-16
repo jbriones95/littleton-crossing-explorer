@@ -186,4 +186,4 @@ label,.profile span:not(.profile-icon),.profile small{font-size:.95rem}
 .map-distance,.crossing-status,.legend-title,.map-legend{font-size:.9rem}
 .scene-label,.scene-distance,.scene-timer,.scene-signal{font-size:.85rem}
 input::placeholder{font-size:1rem}
-.notice p,.method p,.scene-intro,.section-help,.crossing-context,.scene-summary,.profile-note,.vote-panel p,.selected-card p{max-width:70ch}
+.notice p,.method p,.scene-intro,.section-help,.crossing-context,.scene-summary,.profile-note,.vote-panel p,.selected-card p,.site-footer p{max-width:70ch}
