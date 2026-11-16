@@ -169,3 +169,19 @@ body,body *{font-family:"Finlandica",system-ui,-apple-system,BlinkMacSystemFont,
   .map-legend .legend-title{grid-column:1/-1}
   .leaflet-control-zoom a{width:2.75rem!important;height:2.75rem!important;line-height:2.75rem!important}
 }
+
+/* Readability: avoid tiny interface/body text. */
+body{font-size:16px;line-height:1.6}
+.subtitle,.notice p,.section-help,.muted,.method p,.site-footer p,.scene-intro{font-size:1rem;line-height:1.6}
+.controls h2,.details h2,.scene-section h2,.street-data summary,.method h2,.map-section h2{font-size:1.25rem;line-height:1.4}
+button,input,select,textarea{font-size:1rem}
+label,.profile span:not(.profile-icon),.profile small{font-size:.95rem}
+.profile small,.street-suggestion,#result-count{font-size:.9rem}
+.profile-overlay-title{font-size:1rem}
+.profile-overlay-subtitle{font-size:.95rem}
+.profile-result-name{font-size:1rem}
+.profile-result-name small{font-size:.875rem}
+.profile-result strong{font-size:.875rem}
+.profile-overlay-note{font-size:.875rem}
+.map-distance,.crossing-status,.legend-title,.map-legend{font-size:.9rem}
+input::placeholder{font-size:1rem}
