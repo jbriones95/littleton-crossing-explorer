@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Is it safe to cross? | Littleton crossing explorer</title>
   <meta name="description" content="Explore Littleton street data and estimated pedestrian crossing clearance times.">
+  <meta name="theme-color" content="#123a5c">
+  <meta property="og:title" content="Is it safe to cross? | Littleton crossing explorer">
+  <meta property="og:description" content="Explore Littleton street data and estimated pedestrian crossing clearance times.">
+  <meta property="og:image" content="favicon.svg">
+  <meta name="twitter:card" content="summary">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,7 +27,7 @@
   </header>
   <main id="main" class="wrap">
     <section class="notice" aria-labelledby="notice-title">
-      <h2 id="notice-title">Important information</h2>
+      <h2 id="notice-title">Crossing estimate limitations</h2>
       <p>This site shows estimates derived from street-centerline data and Colorado pedestrian-signal guidance. Crossing estimates are informational and are not guaranteed.</p>
     </section>
 
@@ -31,12 +36,14 @@
       <div class="control-grid">
         <div class="journey-inputs">
           <span class="journey-intro">I want to cross</span>
-          <label>
+          <label for="street-one">
+            <span class="input-label">Street being crossed</span>
             <input id="street-one" type="search" placeholder="Choose a street" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="street-one-suggestions" aria-expanded="false">
             <div id="street-one-suggestions" class="street-suggestions" role="listbox" aria-label="Crossing street suggestions"></div>
           </label>
           <span class="journey-connector">coming from</span>
-          <label>
+          <label for="street-two">
+            <span class="input-label">Approach street</span>
             <input id="street-two" type="search" placeholder="Choose a street" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="street-two-suggestions" aria-expanded="false">
             <div id="street-two-suggestions" class="street-suggestions" role="listbox" aria-label="Approach street suggestions"></div>
           </label>
@@ -111,7 +118,7 @@
     </details>
 
     <section class="method" aria-labelledby="method-title">
-      <h2 id="method-title">How estimates work</h2>
+      <h2 id="method-title">How crossing estimates work</h2>
        <p>We estimate each movement profile's crossing time by dividing the crossing distance by its walking speed and rounding up. The map overlay compares those estimates with reported signal timing when available.</p>
        <p><a href="https://www.codot.gov/safety/traffic-safety/assets/documents/guidelines-for-pedestrian-signal-timing" target="_blank" rel="noopener">Read the CDOT Guidelines for Pedestrian Signal Timing</a></p>
     </section>

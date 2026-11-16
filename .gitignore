@@ -4,3 +4,4 @@ __MACOSX/
 .wrangler/
 .impeccable/config.local.json
 .impeccable/hook.cache.json
+.taste-skill/

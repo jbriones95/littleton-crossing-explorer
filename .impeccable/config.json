@@ -5,5 +5,15 @@
       "maxFindings": 5,
       "maxChars": 8000
     }
+  },
+  "detector": {
+    "ignoreFiles": [
+      ".agents/**",
+      "agent/**",
+      "data/skills/**",
+      "migrations/**",
+      "test/**",
+      "n712kv0.6.0/**"
+    ]
   }
 }
