@@ -2,3 +2,5 @@ node_modules/
 __MACOSX/
 .DS_Store
 .wrangler/
+.impeccable/config.local.json
+.impeccable/hook.cache.json
