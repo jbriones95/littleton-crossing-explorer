@@ -226,5 +226,18 @@ input:focus,select:focus,button:focus,a:focus,#map:focus,.leaflet-control-zoom a
 .scene-section{padding-inline:1rem}
 .street-data summary{padding:1rem 0}
 
+/* Limitations read as a labelled note: title on the left, detail on the right. */
+.notice{display:grid;grid-template-columns:minmax(11rem,0.8fr) minmax(0,1.2fr);gap:.75rem 2rem;align-items:start;margin:1.5rem 0;padding:1.25rem 1.5rem}
+.notice h2{margin:0;max-width:18ch;font-size:1.1rem;line-height:1.35}
+.notice p{margin:0;max-width:62ch}
+@media(max-width:760px){
+  .notice{grid-template-columns:1fr;gap:.5rem;padding:1rem 1.25rem}
+  .notice h2{max-width:none}
+}
+
+/* Header and footer text share the title's white. */
+.site-header .subtitle,.site-footer,.site-footer p,.site-footer a{color:#ffffff}
+.site-footer a{text-decoration:underline;text-underline-offset:2px}
+
 /* A little breathing room where the map section meets the next panel. */
 .map-section{padding-bottom:1rem}
