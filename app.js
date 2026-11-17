@@ -308,8 +308,8 @@ function renderProfileOverlay(street) {
       const canCross = available ? needed <= available : null;
       const secondsLeft = canCross === true ? available - needed : null;
       const resultClass = canCross === null ? 'unknown' : canCross ? secondsLeft <= 7 ? 'tight-time' : 'can-cross' : 'cannot-cross';
-      const timingDetail = canCross === true ? `${needed} sec needed · ${secondsLeft} sec left` : `${needed} sec needed`;
-      return `<div class="profile-result ${resultClass}"><span class="profile-result-icon" aria-hidden="true">${profile.emoji}</span><span class="profile-result-name">${profile.name}<small>${profile.speed.toFixed(1)} ft/sec · ${timingDetail}</small></span><strong>${canCross === null ? '—' : canCross ? 'Yes' : 'No'}</strong></div>`;
+      const timingDetail = canCross === true ? `${needed} sec needed, ${secondsLeft} sec left` : `${needed} sec needed`;
+      return `<div class="profile-result ${resultClass}"><span class="profile-result-icon" aria-hidden="true">${profile.emoji}</span><span class="profile-result-name">${profile.name}<small>${profile.speed.toFixed(1)} ft/sec, ${timingDetail}</small></span><strong>${canCross === null ? '—' : canCross ? 'Yes' : 'No'}</strong></div>`;
     }).join('')}</div>`;
 }
 
@@ -360,7 +360,7 @@ async function loadVotes() {
     if (!response.ok) throw new Error('Vote service unavailable');
     const data = await response.json();
     if (state.voteKey !== key) return;
-    $('vote-counts').textContent = `${data.adequate} adequate · ${data.inadequate} too short`;
+    $('vote-counts').textContent = `${data.adequate} adequate, ${data.inadequate} too short`;
     document.querySelectorAll('.vote-actions button').forEach(button => button.classList.toggle('chosen', button.dataset.vote === data.userVote));
     $('vote-message').textContent = data.userVote ? 'Your vote is saved.' : '';
   } catch { $('vote-message').textContent = 'Community voting is unavailable right now.'; }
