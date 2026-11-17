@@ -203,7 +203,12 @@ input::placeholder{font-size:1rem}
 .scene-stats{margin:.75rem 0}
 .scene-stats>div{padding:.5rem .75rem}
 .scene-summary{padding:.75rem .75rem}
-.muted,.profile-overlay-subtitle,.profile-result-name small,.profile-overlay-note,.stat span,.scene-stats span{color:#536272}
+.muted,.profile-overlay-subtitle,.profile-result-name small,.profile-overlay-note,.stat span,.scene-stats span,.profile small,.section-help,.scene-intro,.input-label,.direction-picker label,.legend-help{color:#3f5b73}
+.profile-result.can-cross .profile-result-name small{color:#1d5763}
+.profile-result.cannot-cross .profile-result-name small{color:#7a2b2b}
+.profile-result.unknown .profile-result-name small{color:#3d5166}
+.scene-stats>div:nth-child(2) span{color:#1d5763}
+.scene-stats>div:nth-child(3) span{color:#7a2b2b}
 
 /* Visible, high-contrast focus for keyboard users. */
 input:focus,select:focus,button:focus,a:focus,#map:focus,.leaflet-control-zoom a:focus{outline:3px solid #0d2438;outline-offset:2px}
